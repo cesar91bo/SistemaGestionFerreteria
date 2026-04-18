@@ -1,0 +1,327 @@
+@using SistemaGestionFerreteria.Application.Features.Clientes.Models
+@using SistemaGestionFerreteria.Domain.Enums
+@using System.ComponentModel.DataAnnotations
+@rendermode InteractiveServer
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="mb-0">
+                @(Modelo?.IdCliente > 0 ? "Editar cliente" : "Nuevo cliente")
+            </h4>
+
+            @if (Modelo?.IdCliente > 0)
+            {
+                <span class="badge bg-secondary">ID: @Modelo.IdCliente</span>
+            }
+        </div>
+
+        @if (Modelo == null)
+        {
+            <div class="alert alert-info mb-0">
+                Seleccioná un cliente de la lista o presioná "Nuevo cliente".
+            </div>
+        }
+        else
+        {
+            <EditForm Model="Modelo" OnValidSubmit="Guardar">
+                <DataAnnotationsValidator />
+
+                @if (!string.IsNullOrWhiteSpace(MensajeError))
+                {
+                    <div class="alert alert-danger mb-3">
+                        @MensajeError
+                    </div>
+                }
+
+                <div class="row g-3">
+
+                    <div class="col-md-6">
+                        <label class="form-label">Nombre</label>
+                        <InputText class="form-control" @bind-Value="Modelo.Nombre" />
+                        <ValidationMessage For="@(() => Modelo.Nombre)" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Apellido</label>
+                        <InputText class="form-control" @bind-Value="Modelo.Apellido" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">
+                            @(Modelo.RequiereFactura ? "CUIT" : "Documento")
+                        </label>
+
+                        <InputText class="form-control" @bind-Value="DocumentoFiscal" />
+
+                        @if (Modelo.RequiereFactura)
+                        {
+                            @if (string.IsNullOrWhiteSpace(Modelo.Cuit))
+                            {
+                                <div class="validation-custom">
+                                    Debés ingresar el CUIT para facturar.
+                                </div>
+                            }
+                            else if (!ValidarCuit(Modelo.Cuit))
+                            {
+                                <div class="validation-custom">
+                                    El CUIT ingresado no tiene un formato válido.
+                                </div>
+                            }
+                        }
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Teléfono</label>
+                        <InputText class="form-control" @bind-Value="Modelo.Telefono" />
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Email</label>
+                        <InputText class="form-control" @bind-Value="Modelo.Email" />
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Dirección</label>
+                        <InputText class="form-control" @bind-Value="Modelo.Direccion" />
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="form-check mt-2">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="chkFactura"
+                                   checked="@Modelo.RequiereFactura"
+                                   @onchange="CambioRequiereFactura" />
+
+                            <label class="form-check-label" for="chkFactura">
+                                Requiere factura
+                            </label>
+                        </div>
+                    </div>
+
+                    @if (Modelo.RequiereFactura)
+                    {
+                        <div class="col-md-5">
+                            <label class="form-label">Régimen impositivo</label>
+
+                            <InputSelect class="form-select"
+                                         @bind-Value="Modelo.RegimenImpositivo">
+
+                                @foreach (TipoRegimenImpositivo item in Enum.GetValues(typeof(TipoRegimenImpositivo)))
+                                {
+                                    <option value="@item">@ObtenerDescripcion(item)</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    }
+
+                    <div class="col-12 mt-4 d-flex gap-2">
+                        <button type="submit" class="btn btn-success">
+                            Guardar
+                        </button>
+
+                        <button type="button"
+                                class="btn btn-outline-secondary"
+                                @onclick="Cancelar">
+                            Cancelar
+                        </button>
+
+                        @if (Modelo.IdCliente > 0)
+                        {
+                            @if (Modelo.Activo)
+                            {
+                                <button type="button"
+                                        class="btn btn-danger"
+                                        @onclick="OnDarDeBaja">
+                                    Dar de baja
+                                </button>
+                            }
+                            else
+                            {
+                                <button type="button"
+                                        class="btn btn-primary"
+                                        @onclick="OnReactivar">
+                                    Reactivar
+                                </button>
+                            }
+                        }
+                    </div>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public ClienteViewModel? Modelo { get; set; }
+
+    [Parameter] public EventCallback OnGuardar { get; set; }
+    [Parameter] public EventCallback OnCancelar { get; set; }
+    [Parameter] public EventCallback OnDarDeBaja { get; set; }
+    [Parameter] public EventCallback OnReactivar { get; set; }
+
+    private string? MensajeError;
+
+    private string? DocumentoFiscal
+    {
+        get
+        {
+            if (Modelo == null)
+                return null;
+
+            return Modelo.RequiereFactura
+                ? Modelo.Cuit
+                : Modelo.Documento;
+        }
+        set
+        {
+            if (Modelo == null)
+                return;
+
+            if (Modelo.RequiereFactura)
+            {
+                Modelo.Cuit = value;
+            }
+            else
+            {
+                Modelo.Documento = value;
+            }
+        }
+    }
+
+    private async Task Guardar()
+    {
+        MensajeError = null;
+
+        if (Modelo == null)
+            return;
+
+        if (string.IsNullOrWhiteSpace(Modelo.Nombre))
+        {
+            MensajeError = "Debés ingresar el nombre.";
+            return;
+        }
+
+        if (Modelo.RequiereFactura)
+        {
+            if (string.IsNullOrWhiteSpace(Modelo.Cuit))
+            {
+                MensajeError = "Debés ingresar el CUIT.";
+                return;
+            }
+
+            if (!ValidarCuit(Modelo.Cuit))
+            {
+                MensajeError = "El CUIT ingresado no es válido.";
+                return;
+            }
+        }
+
+        await OnGuardar.InvokeAsync();
+    }
+
+    private async Task Cancelar()
+    {
+        MensajeError = null;
+        await OnCancelar.InvokeAsync();
+    }
+
+    private void CambioRequiereFactura(ChangeEventArgs e)
+    {
+        if (Modelo == null)
+            return;
+
+        bool nuevoValor = e.Value is bool valor && valor;
+
+        if (Modelo.RequiereFactura == nuevoValor)
+            return;
+
+        Modelo.RequiereFactura = nuevoValor;
+
+        if (Modelo.RequiereFactura)
+        {
+            if (string.IsNullOrWhiteSpace(Modelo.Cuit) &&
+                !string.IsNullOrWhiteSpace(Modelo.Documento))
+            {
+                Modelo.Cuit = Modelo.Documento;
+            }
+
+            if (Modelo.RegimenImpositivo == 0)
+            {
+                Modelo.RegimenImpositivo = TipoRegimenImpositivo.ConsumidorFinal;
+            }
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(Modelo.Documento) &&
+                !string.IsNullOrWhiteSpace(Modelo.Cuit))
+            {
+                Modelo.Documento = Modelo.Cuit;
+            }
+
+            Modelo.RegimenImpositivo = TipoRegimenImpositivo.ConsumidorFinal;
+        }
+    }
+
+    private bool ValidarCuit(string? cuit)
+    {
+        if (string.IsNullOrWhiteSpace(cuit))
+            return false;
+
+        string soloNumeros = new string(cuit.Where(char.IsDigit).ToArray());
+
+        if (soloNumeros.Length != 11)
+            return false;
+
+        int[] multiplicadores = { 5, 4, 3, 2, 7, 6, 5, 4, 3, 2 };
+
+        int suma = 0;
+
+        for (int i = 0; i < 10; i++)
+        {
+            suma += int.Parse(soloNumeros[i].ToString()) * multiplicadores[i];
+        }
+
+        int resto = suma % 11;
+        int digito = 11 - resto;
+
+        if (digito == 11)
+            digito = 0;
+        else if (digito == 10)
+            digito = 9;
+
+        return digito == int.Parse(soloNumeros[10].ToString());
+    }
+
+    private string ObtenerDescripcion(Enum value)
+    {
+        var field = value.GetType().GetField(value.ToString());
+
+        if (field == null)
+            return value.ToString();
+
+        var attribute = Attribute.GetCustomAttribute(field, typeof(DisplayAttribute)) as DisplayAttribute;
+
+        return attribute?.Name ?? value.ToString();
+    }
+}
+
+<style>
+    .validation-message {
+        color: #ff8f8f;
+        font-size: .9rem;
+        margin-top: 6px;
+    }
+
+    .validation-custom {
+        margin-top: 6px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        background-color: rgba(220,53,69,.15);
+        border: 1px solid rgba(220,53,69,.35);
+        color: #ffb3b3;
+        font-size: .9rem;
+    }
+</style>

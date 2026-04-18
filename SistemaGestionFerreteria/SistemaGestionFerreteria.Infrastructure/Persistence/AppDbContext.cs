@@ -9,6 +9,7 @@ namespace SistemaGestionFerreteria.Infrastructure.Persistence
         public DbSet<Producto> Productos => Set<Producto>();
         public DbSet<Categoria> Categorias => Set<Categoria>();
         public DbSet<Proveedor> Proveedores => Set<Proveedor>();
+        public DbSet<Cliente> Clientes => Set<Cliente>();
         public DbSet<ProductoPrecio> ProductosPrecios => Set<ProductoPrecio>();
         public DbSet<UnidadMedida> UnidadesMedida => Set<UnidadMedida>();
         public DbSet<Parametro> Parametros => Set<Parametro>();
@@ -38,6 +39,55 @@ namespace SistemaGestionFerreteria.Infrastructure.Persistence
                 
                 entity.Property(x => x.IdCategoria)
                     .IsRequired();
+            });
+
+            modelBuilder.Entity<Cliente>(entity =>
+            {
+                entity.ToTable("Clientes");
+
+                entity.HasKey(x => x.IdCliente);
+
+                entity.Property(x => x.IdCliente)
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.Nombre)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.Apellido)
+                    .HasMaxLength(100);
+
+                entity.Property(x => x.Documento)
+                    .HasMaxLength(50);
+
+                entity.HasIndex(x => x.Documento)
+                    .IsUnique()
+                    .HasFilter("[Documento] IS NOT NULL AND [Documento] <> ''");
+
+                entity.Property(x => x.Telefono)
+                    .HasMaxLength(50);
+
+                entity.Property(x => x.Email)
+                    .HasMaxLength(150);
+
+                entity.Property(x => x.Direccion)
+                    .HasMaxLength(250);
+
+                entity.Property(x => x.RequiereFactura)
+                    .HasDefaultValue(false);
+
+                entity.Property(x => x.Cuit)
+                    .HasMaxLength(50);
+
+                entity.Property(x => x.RegimenImpositivo)
+                    .HasConversion<int>()
+                    .IsRequired();
+
+                entity.Property(x => x.Activo)
+                    .HasDefaultValue(true);
+
+                entity.Property(x => x.FechaAlta)
+                    .HasDefaultValueSql("GETDATE()");
             });
 
             modelBuilder.Entity<Proveedor>(entity =>

@@ -1,0 +1,180 @@
+@page "/clientes"
+@rendermode InteractiveServer
+
+@using SistemaGestionFerreteria.Application.Features.Clientes.Models
+@using SistemaGestionFerreteria.Application.Interfaces
+
+@inject IClienteService ClienteService
+
+<div class="container-fluid py-3">
+    <div class="row g-3">
+
+        <div class="col-md-5">
+            <ClienteLista Clientes="Clientes"
+                           ClienteSeleccionado="ClienteSeleccionado"
+                           OnSeleccionar="SeleccionarCliente"
+                           OnNuevo="NuevoCliente" />
+        </div>
+
+        <div class="col-md-7">
+            @if (!string.IsNullOrWhiteSpace(MensajeError))
+            {
+                <div class="alert alert-danger mb-3">
+                    @MensajeError
+                </div>
+            }
+
+            <ClienteFormulario Modelo="ClienteEnEdicion"
+                                OnGuardar="GuardarCliente"
+                                OnCancelar="CancelarEdicion"
+                                OnDarDeBaja="DarDeBajaCliente"
+                                OnReactivar="ReactivarCliente" />
+        </div>
+
+    </div>
+</div>
+
+@code {
+    private List<ClienteViewModel> Clientes = new();
+
+    private ClienteViewModel? ClienteSeleccionado;
+    private ClienteViewModel? ClienteEnEdicion;
+
+    private string? MensajeError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarClientesAsync();
+    }
+
+    private async Task CargarClientesAsync()
+    {
+        Clientes = await ClienteService.ObtenerTodosAsync();
+    }
+
+    private Task SeleccionarCliente(ClienteViewModel cliente)
+    {
+        ClienteSeleccionado = cliente;
+        ClienteEnEdicion = Clonar(cliente);
+        return Task.CompletedTask;
+    }
+
+    private void NuevoCliente()
+    {
+        ClienteSeleccionado = null;
+
+        ClienteEnEdicion = new ClienteViewModel
+        {
+            Activo = true
+        };
+    }
+
+    private async Task GuardarCliente()
+    {
+        if (ClienteEnEdicion == null)
+            return;
+
+        MensajeError = null;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(ClienteEnEdicion.Nombre))
+            {
+                MensajeError = "Debe ingresar el nombre del cliente.";
+                return;
+            }
+
+            if (ClienteEnEdicion.RequiereFactura
+                && string.IsNullOrWhiteSpace(ClienteEnEdicion.Cuit))
+            {
+                MensajeError = "Debe ingresar el CUIT si el cliente requiere factura.";
+                return;
+            }
+
+            var esNuevo = ClienteEnEdicion.IdCliente == 0;
+
+            if (esNuevo)
+            {
+                await ClienteService.CrearAsync(ClienteEnEdicion);
+            }
+            else
+            {
+                await ClienteService.ActualizarAsync(ClienteEnEdicion);
+            }
+
+            await CargarClientesAsync();
+
+            // Limpiar selección y formulario para que el usuario elija otro
+            ClienteSeleccionado = null;
+            ClienteEnEdicion = null;
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            MensajeError = ex.Message;
+        }
+    }
+
+    private void CancelarEdicion()
+    {
+        ClienteEnEdicion = Clonar(ClienteSeleccionado);
+    }
+
+    private async Task DarDeBajaCliente()
+    {
+        if (ClienteEnEdicion == null)
+            return;
+
+        if (ClienteEnEdicion.IdCliente <= 0)
+            return;
+
+        await ClienteService.DarDeBajaAsync(ClienteEnEdicion.IdCliente);
+
+        await CargarClientesAsync();
+
+        ClienteSeleccionado = null;
+        ClienteEnEdicion = null;
+
+        StateHasChanged();
+    }
+
+    private async Task ReactivarCliente()
+    {
+        if (ClienteEnEdicion == null)
+            return;
+
+        if (ClienteEnEdicion.IdCliente <= 0)
+            return;
+
+        await ClienteService.ReactivarAsync(ClienteEnEdicion.IdCliente);
+
+        await CargarClientesAsync();
+
+        ClienteSeleccionado = null;
+        ClienteEnEdicion = null;
+
+        StateHasChanged();
+    }
+
+    private static ClienteViewModel? Clonar(ClienteViewModel? cliente)
+    {
+        if (cliente == null)
+            return null;
+
+        return new ClienteViewModel
+        {
+            IdCliente = cliente.IdCliente,
+            Nombre = cliente.Nombre,
+            Apellido = cliente.Apellido,
+            Documento = cliente.Documento,
+            RequiereFactura = cliente.RequiereFactura,
+            Cuit = cliente.Cuit,
+            RegimenImpositivo = cliente.RegimenImpositivo,
+            Telefono = cliente.Telefono,
+            Email = cliente.Email,
+            Direccion = cliente.Direccion,
+            Activo = cliente.Activo
+        };
+    }
+}

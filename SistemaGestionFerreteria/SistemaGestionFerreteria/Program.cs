@@ -4,6 +4,7 @@ using SistemaGestionFerreteria.Components;
 using SistemaGestionFerreteria.Infrastructure.Persistence;
 using SistemaGestionFerreteria.Infrastructure.Services;
 using SistemaGestionFerreteria.Infrastructure.Services.Categorias;
+using SistemaGestionFerreteria.Infrastructure.Services.Clientes;
 using SistemaGestionFerreteria.Infrastructure.Services.Parametros;
 using SistemaGestionFerreteria.Infrastructure.Services.Productos;
 using SistemaGestionFerreteria.Infrastructure.Services.Unidades;
@@ -19,6 +20,7 @@ builder.Services.AddScoped<ICategoriaService, CategoriaService>();
 builder.Services.AddScoped<IProveedorService, ProveedorService>();
 builder.Services.AddScoped<IUnidadMedidaService, UnidadMedidaService>();
 builder.Services.AddScoped<IParametroService, ParametroService>();
+builder.Services.AddScoped<IClienteService, ClienteService>();
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
