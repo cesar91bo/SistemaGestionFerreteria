@@ -1,0 +1,720 @@
+﻿@page "/productos/actualizacion-precios"
+@rendermode InteractiveServer
+
+@using SistemaGestionFerreteria.Application.Features.Productos.Models
+@using SistemaGestionFerreteria.Application.Interfaces
+@using SistemaGestionFerreteria.Domain.Enums
+@inject IProductoService ProductoService
+
+<PageTitle>Actualización masiva de precios</PageTitle>
+
+<div class="container-fluid py-4 actualizacion-precios-page">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Actualización masiva de precios</h2>
+            <p class="text-muted mb-0">
+                Seleccioná los productos y aplicá cambios en lote.
+            </p>
+        </div>
+
+        <button class="btn btn-outline-light"
+                @onclick="Volver">
+            ← Volver a productos
+        </button>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card resumen-card h-100">
+                <div class="card-body">
+                    <div class="resumen-titulo">Sin precio</div>
+                    <div class="resumen-numero text-warning">@CantidadSinPrecio</div>
+                    <small>Productos sin precio vigente</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card resumen-card h-100">
+                <div class="card-body">
+                    <div class="resumen-titulo">Desactualizados</div>
+                    <div class="resumen-numero text-danger">@CantidadDesactualizados</div>
+                    <small>Más de 90 días sin actualizar</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card resumen-card h-100">
+                <div class="card-body">
+                    <div class="resumen-titulo">Margen bajo</div>
+                    <div class="resumen-numero text-info">@CantidadMargenBajo</div>
+                    <small>Menor al margen por defecto</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card resumen-card h-100">
+                <div class="card-body">
+                    <div class="resumen-titulo">Seleccionados</div>
+                    <div class="resumen-numero text-success">
+                        @CantidadSeleccionados
+                    </div>
+                    <small>Productos listos para modificar</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-dark border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Buscar</label>
+                <input class="form-control"
+                       placeholder="Descripción, código o proveedor"
+                       @bind="TextoBusqueda"
+                       @bind:event="oninput" />
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Categoría</label>
+                <select class="form-select" @bind="CategoriaSeleccionada">
+                    <option value="">Todas las categorías</option>
+
+                    @foreach (var categoria in Productos
+                        .GroupBy(x => new { x.IdCategoria, x.CategoriaDescripcion })
+                        .OrderBy(x => x.Key.CategoriaDescripcion))
+                    {
+                        <option value="@categoria.Key.IdCategoria">
+                            @categoria.Key.CategoriaDescripcion
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Proveedor</label>
+                <select class="form-select" @bind="ProveedorSeleccionado">
+                    <option value="">Todos los proveedores</option>
+
+                    @foreach (var proveedor in Productos
+                        .Where(x => x.IdProveedor.HasValue)
+                        .GroupBy(x => new { x.IdProveedor, x.ProveedorDescripcion })
+                        .OrderBy(x => x.Key.ProveedorDescripcion))
+                    {
+                        <option value="@proveedor.Key.IdProveedor">
+                            @proveedor.Key.ProveedorDescripcion
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-2 d-grid">
+                <button class="btn btn-outline-secondary" type="button">
+                    @ProductosFiltrados.Count producto(s)
+                </button>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-3 mt-4">
+            <div class="form-check">
+                <input class="form-check-input"
+                       type="checkbox"
+                       id="chkSinPrecio"
+                       @bind="SoloSinPrecio">
+
+                <label class="form-check-label" for="chkSinPrecio">
+                    Solo sin precio
+                </label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input"
+                       type="checkbox"
+                       id="chkDesactualizados"
+                       @bind="SoloDesactualizados">
+
+                <label class="form-check-label" for="chkDesactualizados">
+                    Más de 90 días sin actualizar
+                </label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input"
+                       type="checkbox"
+                       id="chkStock"
+                       @bind="SoloConStock">
+
+                <label class="form-check-label" for="chkStock">
+                    Solo con stock
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <div class="card bg-dark border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Productos</h5>
+
+            <div class="d-flex gap-2">
+               <button class="btn btn-outline-light btn-sm"
+                    @onclick="SeleccionarVisibles">
+                    Seleccionar visibles
+                </button>
+                
+                <button class="btn btn-outline-secondary btn-sm"
+                        @onclick="LimpiarSeleccion"
+                        disabled="@(!ProductosSeleccionados.Any())">
+                    Limpiar selección
+                </button>
+            </div>
+        </div>
+
+        <div class="table-responsive tabla-productos-scroll">
+            <table class="table table-dark table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">
+                            <input type="checkbox" />
+                        </th>
+                        <th>Código</th>
+                        <th>Producto</th>
+                        <th>Costo</th>
+                        <th>Venta</th>
+                        <th>% Ganancia</th>
+                        <th>Última actualización</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Productos.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center py-4 text-secondary">
+                                No hay productos para mostrar.
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var producto in ProductosFiltrados)
+                        {
+                            var precioVenta = producto.PrecioVentaActual ?? 0;
+                            var precioCosto = producto.PrecioCostoActual ?? 0;
+
+                            decimal? margen = null;
+
+                            if (precioCosto > 0 && precioVenta > 0)
+                            {
+                                margen = ((precioVenta - precioCosto) / precioCosto) * 100;
+                            }
+
+                            <tr>
+                                <td>
+                                    <input type="checkbox"
+                                        class="form-check-input"
+                                        checked="@ProductosSeleccionados.Contains(producto.IdProducto)"
+                                        @onchange="e => SeleccionarProducto(producto.IdProducto, (bool)e.Value!)" />
+                                </td>
+
+                                <td>
+                                    @(string.IsNullOrWhiteSpace(producto.CodigoProducto)
+                                        ? "-"
+                                        : producto.CodigoProducto)
+                                </td>
+
+                                <td>
+                                    <div class="fw-semibold">@producto.Descripcion</div>
+                                    <small class="text-secondary">
+                                        @(string.IsNullOrWhiteSpace(producto.CategoriaDescripcion)
+                                            ? "Sin categoría"
+                                            : producto.CategoriaDescripcion)
+                                    </small>
+                                </td>
+
+                                <td>
+                                    @if (precioCosto > 0)
+                                    {
+                                        @($"$ {precioCosto:N2}")
+                                    }
+                                    else
+                                    {
+                                        <span class="text-secondary">-</span>
+                                    }
+                                </td>
+
+                                <td>
+                                    @if (precioVenta > 0)
+                                    {
+                                        @($"$ {precioVenta:N2}")
+                                    }
+                                    else
+                                    {
+                                        <span class="text-warning">Sin precio</span>
+                                    }
+                                </td>
+
+                                <td>
+                                    @if (margen.HasValue)
+                                    {
+                                        <span class="@(margen.Value < GananciaPorDefecto ? "text-info" : "")">
+                                            @margen.Value.ToString("N0")%
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-secondary">-</span>
+                                    }
+                                </td>
+
+                                <td>
+                                    @if (producto.FechaUltimaActualizacionPrecio.HasValue)
+                                    {
+                                        var dias = (DateTime.Now - producto.FechaUltimaActualizacionPrecio.Value).Days;
+
+                                        if (dias <= 0)
+                                        {
+                                            <span>Hoy</span>
+                                        }
+                                        else
+                                        {
+                                            <span>Hace @dias días</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-secondary">Nunca</span>
+                                    }
+                                </td>
+
+                                <td>
+                                    @if (precioVenta <= 0)
+                                    {
+                                        <span class="badge bg-warning text-dark">Sin precio</span>
+                                    }
+                                    else if (producto.FechaUltimaActualizacionPrecio.HasValue
+                                        && (DateTime.Now - producto.FechaUltimaActualizacionPrecio.Value).Days > 90)
+                                    {
+                                        <span class="badge bg-danger">Desactualizado</span>
+                                    }
+                                    else if (margen.HasValue && margen.Value < GananciaPorDefecto)
+                                    {
+                                        <span class="badge bg-info text-dark">Margen bajo</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">OK</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(MensajeExito))
+    {
+        <div class="alert alert-success mb-3">
+            @MensajeExito
+        </div>
+    }
+    @if (MostrarConfirmacion)
+    {
+        <div class="alert alert-warning mb-3">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                <div>
+                    <strong>Confirmación:</strong>
+                    se actualizarán <strong>@PreviewCambios.Count</strong> producto(s).
+                    ¿Deseás continuar?
+                </div>
+    
+                <div class="d-flex gap-2">
+                    <button class="btn btn-secondary btn-sm"
+                            @onclick="CerrarConfirmacion">
+                        Cancelar
+                    </button>
+    
+                    <button class="btn btn-success btn-sm"
+                            @onclick="ConfirmarCambios">
+                        Sí, actualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+    <div class="card shadow-sm border-0 mb-3">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Operación</label>
+                <select class="form-select" @bind="OperacionSeleccionada">
+                    <option value="@TipoActualizacionPrecio.AumentarPorcentaje">Aumentar porcentaje</option>
+                    <option value="@TipoActualizacionPrecio.DisminuirPorcentaje">Disminuir porcentaje</option>
+                    <option value="@TipoActualizacionPrecio.ReemplazarMargen">Reemplazar margen</option>
+                    <option value="@TipoActualizacionPrecio.MargenPorDefecto">Usar margen por defecto</option>
+                </select>
+            </div>
+
+            @if (OperacionSeleccionada != TipoActualizacionPrecio.MargenPorDefecto)
+            {
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Valor (%)</label>
+                    <input type="number"
+                           class="form-control"
+                                                     step="0.01"
+                           @bind="ValorOperacion" />
+                </div>
+            }
+            else
+            {
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Margen por defecto</label>
+                    <input type="text"
+                           class="form-control"
+                           value="@($"{GananciaPorDefecto:N2}%")"
+                           disabled />
+                </div>
+            }
+
+            <div class="col-md-5 d-flex gap-2 justify-content-end">
+                <button class="btn btn-primary"
+                        @onclick="GenerarPreview"
+                        disabled="@(ProductosSeleccionados.Count == 0)">
+                    Generar vista previa
+                </button>
+
+                <button class="btn btn-success"
+                        @onclick="AbrirConfirmacion"
+                        disabled="@(PreviewCambios.Count == 0)">
+                    Confirmar cambios
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+@if (PreviewCambios.Any())
+{
+    <div class="card shadow-sm border-0 mt-4">
+        <div class="card-header bg-light fw-semibold">
+            Vista previa de cambios
+        </div>
+
+        <div class="card-body p-0">
+            <div class="tabla-productos-scroll">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light sticky-top">
+                        <tr>
+                            <th>Producto</th>
+                            <th class="text-end">Precio actual</th>
+                            <th class="text-end">Precio nuevo</th>
+                            <th class="text-end">Diferencia</th>
+                            <th style="width: 70px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in PreviewCambios)
+                        {
+                            <tr>
+                                <td>@item.Descripcion</td>
+
+                                <td class="text-end">
+                                    @item.PrecioActual.ToString("N2")
+                                </td>
+
+                                <td class="text-end fw-semibold">
+                                    @item.PrecioNuevo.ToString("N2")
+                                </td>
+
+                                <td class="text-end">
+                                    <span class="badge @(item.DiferenciaPorcentaje >= 0 ? "bg-success" : "bg-danger")">
+                                        @item.DiferenciaPorcentaje.ToString("N2")%
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-outline-danger"
+                                            title="Quitar de la vista previa"
+                                            @onclick="() => QuitarDePreview(item.IdProducto)">
+                                        ×
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+</div>
+
+@code 
+{
+    private List<ProductoViewModel> Productos = new();
+    private decimal GananciaPorDefecto = 30;
+
+    private TipoActualizacionPrecio OperacionSeleccionada = TipoActualizacionPrecio.AumentarPorcentaje;
+    private decimal ValorOperacion = 0;
+    private List<PreviewActualizacionPrecioViewModel> PreviewCambios = new();
+
+    private bool MostrarConfirmacion;
+
+    private string TextoBusqueda = string.Empty;
+    private int? CategoriaSeleccionada;
+    private int? ProveedorSeleccionado;
+    
+    private bool SoloSinPrecio;
+    private bool SoloDesactualizados;
+    private bool SoloConStock;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Productos = await ProductoService.ObtenerTodosAsync();
+
+        // Temporal hasta que después lo conectemos al parámetro real
+        GananciaPorDefecto = 30;
+    }
+
+    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+    private void Volver()
+    {
+        NavigationManager.NavigateTo("/productos");
+    }
+
+    private HashSet<int> ProductosSeleccionados = new();
+
+    private void SeleccionarProducto(int idProducto, bool seleccionado)
+    {
+        if (seleccionado)
+            ProductosSeleccionados.Add(idProducto);
+        else
+            ProductosSeleccionados.Remove(idProducto);
+    }
+
+    private void SeleccionarVisibles()
+    {
+        foreach (var producto in ProductosFiltrados)
+        {
+            ProductosSeleccionados.Add(producto.IdProducto);
+        }
+    }
+
+    private void GenerarPreview()
+    {
+        var productosSeleccionados = Productos
+            .Where(x => ProductosSeleccionados.Contains(x.IdProducto))
+            .ToList();
+    
+        foreach (var producto in productosSeleccionados)
+        {
+            var previewExistente = PreviewCambios
+                .FirstOrDefault(x => x.IdProducto == producto.IdProducto);
+    
+            var precioActual = producto.PrecioVentaActual ?? 0;
+            var precioCosto = producto.PrecioCostoActual ?? 0;
+    
+            if (precioActual <= 0)
+                continue;
+    
+            decimal precioNuevo = precioActual;
+    
+            switch (OperacionSeleccionada)
+            {
+                case TipoActualizacionPrecio.AumentarPorcentaje:
+                    precioNuevo = precioActual + (precioActual * ValorOperacion / 100);
+                    break;
+    
+                case TipoActualizacionPrecio.DisminuirPorcentaje:
+                    precioNuevo = precioActual - (precioActual * ValorOperacion / 100);
+                    break;
+    
+                case TipoActualizacionPrecio.ReemplazarMargen:
+                    if (precioCosto <= 0)
+                        continue;
+    
+                    precioNuevo = precioCosto + (precioCosto * ValorOperacion / 100);
+                    break;
+    
+                case TipoActualizacionPrecio.MargenPorDefecto:
+                    if (precioCosto <= 0)
+                        continue;
+    
+                    precioNuevo = precioCosto + (precioCosto * GananciaPorDefecto / 100);
+                    break;
+            }
+    
+            precioNuevo = Math.Round(precioNuevo, 2);
+    
+            var diferencia = 0m;
+    
+            if (precioActual > 0)
+            {
+                diferencia = ((precioNuevo - precioActual) / precioActual) * 100;
+            }
+    
+            var preview = new PreviewActualizacionPrecioViewModel
+            {
+                IdProducto = producto.IdProducto,
+                Descripcion = producto.Descripcion ?? string.Empty,
+                PrecioActual = precioActual,
+                PrecioNuevo = precioNuevo,
+                DiferenciaPorcentaje = Math.Round(diferencia, 2)
+            };
+            
+            if (previewExistente != null)
+            {
+                previewExistente.PrecioActual = preview.PrecioActual;
+                previewExistente.PrecioNuevo = preview.PrecioNuevo;
+                previewExistente.DiferenciaPorcentaje = preview.DiferenciaPorcentaje;
+            }
+            else
+            {
+                PreviewCambios.Add(preview);
+            }
+        }
+    
+        ProductosSeleccionados.Clear();
+    }
+    
+    private void LimpiarSeleccion()
+    {
+        ProductosSeleccionados.Clear();
+    }
+    private void QuitarDePreview(int idProducto)
+    {
+        var item = PreviewCambios.FirstOrDefault(x => x.IdProducto == idProducto);
+
+        if (item != null)
+        {
+            PreviewCambios.Remove(item);
+        }
+    }
+
+    private string? MensajeExito;
+
+    private async Task ConfirmarCambios()
+    {
+        if (!PreviewCambios.Any())
+            return;
+    
+        MostrarConfirmacion = false;
+    
+        await ProductoService.ActualizarPreciosMasivamenteAsync(PreviewCambios);
+    
+        MensajeExito = $"{PreviewCambios.Count} producto(s) actualizado(s) correctamente.";
+    
+        PreviewCambios.Clear();
+        ProductosSeleccionados.Clear();
+    
+        Productos = await ProductoService.ObtenerTodosAsync();
+    }
+
+    private void AbrirConfirmacion()
+    {
+        if (!PreviewCambios.Any())
+            return;
+
+        MostrarConfirmacion = true;
+    }
+
+    private void CerrarConfirmacion()
+    {
+        MostrarConfirmacion = false;
+    }
+
+    private List<ProductoViewModel> ProductosFiltrados =>
+    Productos
+        .Where(x =>
+            (string.IsNullOrWhiteSpace(TextoBusqueda)
+             || (x.Descripcion?.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false)
+             || (x.CodigoProducto?.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false)
+             || (x.CodigoBarra?.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false)
+             || (x.ProveedorDescripcion?.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false))
+
+            && (!CategoriaSeleccionada.HasValue || x.IdCategoria == CategoriaSeleccionada.Value)
+
+            && (!ProveedorSeleccionado.HasValue || x.IdProveedor == ProveedorSeleccionado.Value)
+
+            && (!SoloSinPrecio || !x.TienePrecioVigente)
+
+            && (!SoloDesactualizados
+                || !x.FechaUltimaActualizacionPrecio.HasValue
+                || x.FechaUltimaActualizacionPrecio.Value <= DateTime.Now.AddDays(-90))
+
+            && (!SoloConStock
+                || ((x.StockActual ?? 0) > 0))
+        )
+        .ToList();
+
+    private int CantidadSinPrecio =>
+        ProductosFiltrados.Count(x => !x.TienePrecioVigente);
+    
+    private int CantidadDesactualizados =>
+        ProductosFiltrados.Count(x =>
+            !x.FechaUltimaActualizacionPrecio.HasValue
+            || x.FechaUltimaActualizacionPrecio.Value <= DateTime.Now.AddDays(-90));
+    
+    private int CantidadMargenBajo =>
+        ProductosFiltrados.Count(x =>
+        {
+            var costo = x.PrecioCostoActual ?? 0;
+            var venta = x.PrecioVentaActual ?? 0;
+    
+            if (costo <= 0 || venta <= 0)
+                return false;
+    
+            var margen = ((venta - costo) / costo) * 100;
+    
+            return margen < GananciaPorDefecto;
+        });
+    
+    private int CantidadSeleccionados =>
+        ProductosFiltrados.Count(x => ProductosSeleccionados.Contains(x.IdProducto));
+}
+
+<style>
+    .resumen-card {
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 18px;
+    }
+
+        .resumen-card .card-body {
+            padding: 1.5rem;
+        }
+
+    .resumen-titulo {
+        color: rgba(255,255,255,0.75);
+        font-size: 0.95rem;
+        margin-bottom: .5rem;
+    }
+
+    .resumen-numero {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: .5rem;
+    }
+
+    .resumen-card small {
+        color: rgba(255,255,255,0.60);
+        font-size: .9rem;
+    }
+    .tabla-productos-scroll {
+    max-height: 500px;
+    overflow-y: auto;
+    border-radius: 0 0 18px 18px;
+    }
+
+    .tabla-productos-scroll thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #2a3240;
+    }
+</style>

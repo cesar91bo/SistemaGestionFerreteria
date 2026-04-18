@@ -1,0 +1,314 @@
+﻿@using SistemaGestionFerreteria.Application.Features.Proveedores.Models
+@using SistemaGestionFerreteria.Application.Interfaces
+
+@inject IProveedorService ProveedorService
+
+<div class="container py-4" style="max-width: 1200px;">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">Proveedores</h4>
+
+        <button class="btn btn-primary"
+                @onclick="NuevoProveedor">
+            Nuevo proveedor
+        </button>
+    </div>
+
+    <div class="row">
+        <div class="col-md-5">
+            <div class="card shadow-sm">
+                <div class="card-body">
+
+                    <input class="form-control mb-3"
+                           placeholder="Buscar proveedor..."
+                           @bind="TextoBusqueda"
+                           @bind:event="oninput" />
+
+                    @if (ProveedoresFiltrados.Any())
+                    {
+                        <div class="list-group overflow-auto" style="max-height: 320px;">
+                            @foreach (var proveedor in ProveedoresFiltrados)
+                            {
+                                <button type="button"
+                                        class="list-group-item border-0 mb-1 rounded px-3 py-3 proveedor-item @(ProveedorSeleccionado?.IdProveedor == proveedor.IdProveedor ? "proveedor-item-seleccionado" : "")"
+                                        @onclick="() => SeleccionarProveedor(proveedor)">
+
+                                    <div class="fw-semibold">
+                                        @proveedor.Descripcion
+                                    </div>
+
+                                    @if (!string.IsNullOrWhiteSpace(proveedor.Telefono))
+                                    {
+                                        <small>@proveedor.Telefono</small>
+                                    }
+
+                                    @if (!proveedor.Activo)
+                                    {
+                                        <div>
+                                            <small class="text-danger">Inactivo</small>
+                                        </div>
+                                    }
+                                </button>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-muted">
+                            No hay proveedores cargados.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-7">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    @(ProveedorEditando?.IdProveedor == 0
+                        ? "Nuevo proveedor"
+                        : "Editar proveedor")
+                </div>
+
+                <div class="card-body">
+                    @if (ProveedorEditando is not null)
+                    {
+                        <EditForm Model="ProveedorEditando"
+                                  OnValidSubmit="GuardarProveedor">
+
+                            <DataAnnotationsValidator />
+
+                            <div class="mb-3">
+                                <label class="form-label">Nombre</label>
+
+                                <InputText class="form-control"
+                                           @bind-Value="ProveedorEditando.Descripcion" />
+
+                                <ValidationMessage For="@(() => ProveedorEditando.Descripcion)" />
+
+                                    
+                                @if (!string.IsNullOrWhiteSpace(MensajeError))
+                                {
+                                    <div class="text-danger mt-2">
+                                        @MensajeError
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Teléfono</label>
+
+                                <InputText class="form-control"
+                                           @bind-Value="ProveedorEditando.Telefono" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+
+                                <InputText class="form-control"
+                                           @bind-Value="ProveedorEditando.Email" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Dirección</label>
+
+                                <InputText class="form-control"
+                                           @bind-Value="ProveedorEditando.Direccion" />
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-success">
+                                    Guardar
+                                </button>
+
+                                <button type="button"
+                                        class="btn btn-secondary"
+                                        @onclick="Cancelar">
+                                    Cancelar
+                                </button>
+
+                                @if (ProveedorEditando.IdProveedor != 0)
+                                {
+                                    @if (ProveedorEditando.Activo)
+                                    {
+                                        <button type="button"
+                                                class="btn btn-danger ms-auto"
+                                                @onclick="DarDeBajaProveedor">
+                                            Dar de baja
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button"
+                                                class="btn btn-success ms-auto"
+                                                @onclick="ReactivarProveedor">
+                                            Reactivar
+                                        </button>
+                                    }
+                                }
+                            </div>
+                        </EditForm>
+                    }
+                    else
+                    {
+                        <div class="text-muted">
+                            Seleccioná un proveedor o creá uno nuevo.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<ProveedorViewModel> Proveedores = new();
+
+    private ProveedorViewModel? ProveedorSeleccionado;
+    private ProveedorViewModel? ProveedorEditando;
+
+    private string TextoBusqueda = string.Empty;
+    private string? MensajeError;
+
+    private IEnumerable<ProveedorViewModel> ProveedoresFiltrados =>
+        string.IsNullOrWhiteSpace(TextoBusqueda)
+            ? Proveedores
+            : Proveedores.Where(x =>
+                (!string.IsNullOrWhiteSpace(x.Descripcion) &&
+                 x.Descripcion.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase))
+                ||
+                (!string.IsNullOrWhiteSpace(x.Telefono) &&
+                 x.Telefono.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase)));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarProveedoresAsync();
+    }
+
+    private async Task CargarProveedoresAsync()
+    {
+        Proveedores = await ProveedorService.ObtenerTodosAsync();
+
+        ProveedorSeleccionado = null;
+        ProveedorEditando = null;
+    }
+
+    private void SeleccionarProveedor(ProveedorViewModel proveedor)
+    {
+        ProveedorSeleccionado = proveedor;
+        MensajeError = null;
+
+        ProveedorEditando = new ProveedorViewModel
+        {
+            IdProveedor = proveedor.IdProveedor,
+            Descripcion = proveedor.Descripcion,
+            Telefono = proveedor.Telefono,
+            Email = proveedor.Email,
+            Direccion = proveedor.Direccion,
+            Activo = proveedor.Activo
+        };
+    }
+
+    private void NuevoProveedor()
+    {
+        ProveedorSeleccionado = null;
+        MensajeError = null;
+
+        ProveedorEditando = new ProveedorViewModel
+        {
+            IdProveedor = 0,
+            Descripcion = string.Empty,
+            Telefono = string.Empty,
+            Email = string.Empty,
+            Direccion = string.Empty,
+            Activo = true
+        };
+    }
+
+    private async Task GuardarProveedor()
+    {
+        if (ProveedorEditando is null)
+            return;
+
+        MensajeError = null;
+
+        if (string.IsNullOrWhiteSpace(ProveedorEditando.Descripcion))
+        {
+            MensajeError = "Debés ingresar el nombre del proveedor.";
+            return;
+        }
+
+        try
+        {
+            if (ProveedorEditando.IdProveedor == 0)
+            {
+                await ProveedorService.CrearAsync(ProveedorEditando);
+            }
+            else
+            {
+                await ProveedorService.ActualizarAsync(ProveedorEditando);
+            }
+
+            await CargarProveedoresAsync();
+
+            ProveedorSeleccionado = null;
+            ProveedorEditando = null;
+        }
+        catch (Exception ex)
+        {
+            MensajeError = ex.Message;
+        }
+    }
+
+    private void Cancelar()
+    {
+        MensajeError = null;
+        ProveedorSeleccionado = null;
+        ProveedorEditando = null;
+    }
+
+    private async Task DarDeBajaProveedor()
+    {
+        if (ProveedorEditando is null || ProveedorEditando.IdProveedor == 0)
+            return;
+
+        await ProveedorService.DarDeBajaAsync(ProveedorEditando.IdProveedor);
+
+        await CargarProveedoresAsync();
+    }
+
+    private async Task ReactivarProveedor()
+    {
+        if (ProveedorEditando is null || ProveedorEditando.IdProveedor == 0)
+            return;
+
+        await ProveedorService.ReactivarAsync(ProveedorEditando.IdProveedor);
+
+        await CargarProveedoresAsync();
+    }
+}
+
+<style>
+    .proveedor-item {
+        background: rgba(255,255,255,0.05);
+        color: #f5f5f5;
+        transition: all .15s ease;
+        cursor: pointer;
+    }
+
+        .proveedor-item:hover {
+            background: rgba(255,255,255,0.10);
+            transform: translateX(2px);
+        }
+
+    .proveedor-item-seleccionado {
+        background: linear-gradient(90deg, #2563eb, #3b82f6);
+        color: white;
+        font-weight: 600;
+    }
+
+        .proveedor-item-seleccionado:hover {
+            background: linear-gradient(90deg, #2563eb, #3b82f6);
+            color: white;
+        }
+</style>

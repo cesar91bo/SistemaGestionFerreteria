@@ -1,0 +1,272 @@
+﻿@page "/productos"
+@rendermode InteractiveServer
+
+@using SistemaGestionFerreteria.Application.Features.Productos.Models
+@using SistemaGestionFerreteria.Application.Interfaces
+
+@inject IProductoService ProductoService
+@inject ICategoriaService CategoriaService
+@inject IProveedorService ProveedorService
+@inject IUnidadMedidaService UnidadMedidaService
+@inject IProductoPrecioService ProductoPrecioService
+
+<div class="container-fluid py-3">
+    <div class="row g-3">
+
+        <div class="col-md-5">
+            <ProductoLista Productos="Productos"
+                           ProductoSeleccionado="ProductoSeleccionado"
+                           OnSeleccionar="SeleccionarProducto"
+                           OnNuevo="NuevoProducto" />
+        </div>
+
+        <div class="col-md-7">
+            @if (!string.IsNullOrWhiteSpace(MensajeError))
+            {
+                <div class="alert alert-danger mb-3">
+                    @MensajeError
+                </div>
+            }
+            <ProductoFormulario Modelo="ProductoEnEdicion"
+                                Categorias="Categorias"
+                                Proveedores="Proveedores"
+                                UnidadesMedida="UnidadesMedida"
+                                PrecioEdicion="PrecioEdicion"
+                                PrecioActual="PrecioActual"
+                                HistorialPrecios="HistorialPrecios"
+                                OnGuardar="GuardarProducto"
+                                OnGuardarPrecio="GuardarPrecioAsync"
+                                OnCancelar="CancelarEdicion"
+                                OnDarDeBaja="DarDeBajaProducto"
+                                OnReactivar="ReactivarProducto" />
+        </div>
+
+    </div>
+</div>
+
+@code {
+    private List<ProductoViewModel> Productos = new();
+
+    private List<OpcionComboViewModel> Categorias = new();
+    private List<OpcionComboViewModel> Proveedores = new();
+    private List<OpcionComboViewModel> UnidadesMedida = new();
+
+    private ProductoViewModel? ProductoSeleccionado;
+    private ProductoViewModel? ProductoEnEdicion;
+    private ProductoPrecioEdicionViewModel PrecioEdicion = new();
+    private ProductoPrecioHistorialViewModel? PrecioActual;
+    private List<ProductoPrecioHistorialViewModel> HistorialPrecios = new();
+
+    private string? MensajeError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarCombosAsync();
+        await CargarProductosAsync();
+    }
+
+    private async Task CargarCombosAsync()
+    {
+        Categorias = await CategoriaService.ObtenerActivasAsync();
+        Proveedores = await ProveedorService.ObtenerActivosAsync();
+        UnidadesMedida = await UnidadMedidaService.ObtenerComboAsync();
+    }
+
+    private async Task CargarProductosAsync()
+    {
+        Productos = await ProductoService.ObtenerTodosAsync();
+    }
+
+    private async Task SeleccionarProducto(ProductoViewModel producto)
+    {
+        ProductoSeleccionado = producto;
+        ProductoEnEdicion = Clonar(producto);
+
+        PrecioEdicion = await ProductoPrecioService.ObtenerPrecioVigenteAsync(producto.IdProducto);
+
+        HistorialPrecios = await ProductoPrecioService.ObtenerHistorialAsync(producto.IdProducto);
+
+        PrecioActual = HistorialPrecios.FirstOrDefault(x => x.EsVigente);
+
+        StateHasChanged();
+    }
+
+    private void NuevoProducto()
+    {
+        ProductoSeleccionado = null;
+
+        ProductoEnEdicion = new ProductoViewModel
+        {
+            Activo = true,
+            LlevaStock = true,
+            FechaAlta = DateTime.Now
+        };
+
+        PrecioEdicion = new ProductoPrecioEdicionViewModel();
+        PrecioActual = null;
+        HistorialPrecios = new();
+    }
+
+    private async Task GuardarProducto()
+    {
+        if (ProductoEnEdicion == null)
+            return;
+
+        MensajeError = null;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(ProductoEnEdicion.Descripcion))
+                return;
+
+            if (ProductoEnEdicion.IdCategoria <= 0)
+                return;
+
+            var esNuevo = ProductoEnEdicion.IdProducto == 0;
+
+            if (esNuevo)
+            {
+                var nuevoId = await ProductoService.CrearAsync(ProductoEnEdicion);
+                ProductoEnEdicion.IdProducto = nuevoId;
+
+                await CargarProductosAsync();
+
+                var productoGuardado = Productos.First(x => x.IdProducto == nuevoId);
+
+                ProductoSeleccionado = productoGuardado;
+                ProductoEnEdicion = Clonar(productoGuardado);
+
+                PrecioEdicion = new ProductoPrecioEdicionViewModel
+                {
+                    IdProducto = nuevoId
+                };
+
+                HistorialPrecios = new();
+                PrecioActual = null;
+            }
+            else
+            {
+                await ProductoService.ActualizarAsync(ProductoEnEdicion);
+
+                await CargarProductosAsync();
+
+                ProductoSeleccionado = null;
+                ProductoEnEdicion = null;
+                PrecioEdicion = new ProductoPrecioEdicionViewModel();
+                HistorialPrecios = new();
+                PrecioActual = null;
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            MensajeError = ex.Message;
+        }
+    }
+
+    private async Task GuardarPrecioAsync()
+    {
+        if (ProductoEnEdicion == null)
+            return;
+
+        if (ProductoEnEdicion.IdProducto <= 0)
+        {
+            throw new Exception("Primero debe guardar el producto.");
+        }
+
+        try
+        {
+            PrecioEdicion.IdProducto = ProductoEnEdicion.IdProducto;
+
+            await ProductoPrecioService.GuardarNuevoPrecioAsync(PrecioEdicion);
+
+            await CargarProductosAsync();
+
+            var productoActualizado = Productos.First(x => x.IdProducto == ProductoEnEdicion.IdProducto);
+
+            ProductoSeleccionado = productoActualizado;
+            ProductoEnEdicion = Clonar(productoActualizado);
+
+            PrecioEdicion = await ProductoPrecioService.ObtenerPrecioVigenteAsync(productoActualizado.IdProducto);
+
+            HistorialPrecios = await ProductoPrecioService.ObtenerHistorialAsync(productoActualizado.IdProducto);
+
+            PrecioActual = HistorialPrecios.FirstOrDefault(x => x.EsVigente);
+
+            StateHasChanged();
+        }
+        catch
+        {
+            throw;
+        }
+    }
+
+    private void CancelarEdicion()
+    {
+        ProductoEnEdicion = Clonar(ProductoSeleccionado);
+    }
+
+    private async Task DarDeBajaProducto()
+    {
+        if (ProductoEnEdicion == null)
+            return;
+
+        if (ProductoEnEdicion.IdProducto <= 0)
+            return;
+
+        await ProductoService.DarDeBajaAsync(ProductoEnEdicion.IdProducto);
+
+        await CargarProductosAsync();
+
+        ProductoSeleccionado = null;
+        ProductoEnEdicion = null;
+
+        StateHasChanged();
+    }
+
+    private static ProductoViewModel? Clonar(ProductoViewModel? producto)
+    {
+        if (producto == null)
+            return null;
+
+        return new ProductoViewModel
+        {
+            IdProducto = producto.IdProducto,
+            CodigoProducto = producto.CodigoProducto,
+            CodigoBarra = producto.CodigoBarra,
+            Descripcion = producto.Descripcion,
+            Observacion = producto.Observacion,
+            IdCategoria = producto.IdCategoria,
+            CategoriaDescripcion = producto.CategoriaDescripcion,
+            IdProveedor = producto.IdProveedor,
+            ProveedorDescripcion = producto.ProveedorDescripcion,
+            IdUnidadMedida = producto.IdUnidadMedida,
+            LlevaStock = producto.LlevaStock,
+            StockActual = producto.StockActual,
+            StockMinimo = producto.StockMinimo,
+            Activo = producto.Activo,
+            FechaAlta = producto.FechaAlta,
+            FechaModificacion = producto.FechaModificacion,
+            FechaBaja = producto.FechaBaja
+        };
+    }
+
+    private async Task ReactivarProducto()
+    {
+        if (ProductoEnEdicion == null)
+            return;
+
+        if (ProductoEnEdicion.IdProducto <= 0)
+            return;
+
+        await ProductoService.ReactivarAsync(ProductoEnEdicion.IdProducto);
+
+        await CargarProductosAsync();
+
+        ProductoSeleccionado = null;
+        ProductoEnEdicion = null;
+
+        StateHasChanged();
+    }
+}

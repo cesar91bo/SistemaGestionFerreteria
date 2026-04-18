@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="SistemaGestionFerreteria.Application/SistemaGestionFerreteria.Application.csproj" />
+  <Project Path="SistemaGestionFerreteria.Domain/SistemaGestionFerreteria.Domain.csproj" />
+  <Project Path="SistemaGestionFerreteria.Infrastructure/SistemaGestionFerreteria.Infrastructure.csproj" />
+  <Project Path="SistemaGestionFerreteria/SistemaGestionFerreteria.csproj" />
+</Solution>

@@ -1,0 +1,176 @@
+﻿@using SistemaGestionFerreteria.Application.Interfaces
+@inject IParametroService ParametroService
+
+<h3 class="mb-4">Empresa</h3>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <label class="form-label fw-semibold">
+            Razón social <span class="text-danger">*</span>
+        </label>
+
+        <InputText class="@ClaseRazonSocial"
+                   @bind-Value="RazonSocial" />
+
+        @if (MostrarErrorRazonSocial)
+        {
+            <div class="invalid-feedback">
+                Debe ingresar la razón social.
+            </div>
+        }
+    </div>
+
+    <div class="col-md-6">
+        <label class="form-label fw-semibold">
+            Nombre de fantasía
+        </label>
+
+        <InputText class="form-control"
+                   @bind-Value="NombreFantasia" />
+    </div>
+
+    <div class="col-md-8">
+        <label class="form-label fw-semibold">
+            Dirección
+        </label>
+
+        <InputText class="form-control"
+                   @bind-Value="Direccion" />
+    </div>
+
+    <div class="col-md-4">
+        <label class="form-label fw-semibold">
+            Teléfono
+        </label>
+
+        <InputText class="form-control"
+                   @bind-Value="Telefono" />
+    </div>
+
+    <div class="col-md-4">
+        <label class="form-label fw-semibold">
+            CUIT
+        </label>
+
+        <InputText class="form-control"
+                   @bind-Value="Cuit" />
+    </div>
+
+    <div class="col-md-4">
+        <label class="form-label fw-semibold">
+            Inicio de actividades
+        </label>
+
+        <InputDate class="form-control"
+                   @bind-Value="InicioActividades" />
+    </div>
+</div>
+
+<div class="mt-4">
+    <button class="btn btn-primary"
+            @onclick="GuardarAsync"
+            disabled="@Guardando">
+
+        @if (Guardando)
+        {
+            <span class="spinner-border spinner-border-sm me-2"></span>
+        }
+
+        Guardar
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Mensaje))
+{
+    <div class="alert alert-success mt-3">
+        @Mensaje
+    </div>
+}
+
+@code {
+    private string? RazonSocial;
+    private string? NombreFantasia;
+    private string? Direccion;
+    private string? Telefono;
+    private string? Cuit;
+    private DateTime? InicioActividades;
+
+    private bool Guardando;
+    private string? Mensaje;
+    private bool MostrarErrorRazonSocial;
+
+    private string ClaseRazonSocial =>
+    MostrarErrorRazonSocial
+        ? "form-control is-invalid"
+        : "form-control";
+
+    protected override async Task OnInitializedAsync()
+    {
+        RazonSocial = await ParametroService.ObtenerValorAsync("EMPRESA_RAZON_SOCIAL");
+        NombreFantasia = await ParametroService.ObtenerValorAsync("EMPRESA_NOMBRE_FANTASIA");
+        Direccion = await ParametroService.ObtenerValorAsync("EMPRESA_DIRECCION");
+        Telefono = await ParametroService.ObtenerValorAsync("EMPRESA_TELEFONO");
+        Cuit = await ParametroService.ObtenerValorAsync("EMPRESA_CUIT");
+
+        var inicio = await ParametroService.ObtenerValorAsync("EMPRESA_INICIO_ACTIVIDADES");
+
+        if (DateTime.TryParse(inicio, out var fecha))
+            InicioActividades = fecha;
+    }
+
+    private async Task GuardarAsync()
+    {
+        MostrarErrorRazonSocial = string.IsNullOrWhiteSpace(RazonSocial);
+
+        if (MostrarErrorRazonSocial)
+            return;
+
+        Guardando = true;
+        Mensaje = null;
+
+        try
+        {
+            await ParametroService.GuardarAsync(
+                "EMPRESA_RAZON_SOCIAL",
+                RazonSocial ?? string.Empty,
+                "Empresa",
+                "Razón social de la empresa");
+
+            await ParametroService.GuardarAsync(
+                "EMPRESA_NOMBRE_FANTASIA",
+                NombreFantasia ?? string.Empty,
+                "Empresa",
+                "Nombre de fantasía de la empresa");
+
+            await ParametroService.GuardarAsync(
+                "EMPRESA_DIRECCION",
+                Direccion ?? string.Empty,
+                "Empresa",
+                "Dirección de la empresa");
+
+            await ParametroService.GuardarAsync(
+                "EMPRESA_TELEFONO",
+                Telefono ?? string.Empty,
+                "Empresa",
+                "Teléfono de la empresa");
+
+            await ParametroService.GuardarAsync(
+                "EMPRESA_CUIT",
+                Cuit ?? string.Empty,
+                "Empresa",
+                "CUIT de la empresa");
+
+            await ParametroService.GuardarAsync(
+                "EMPRESA_INICIO_ACTIVIDADES",
+                InicioActividades?.ToString("yyyy-MM-dd") ?? string.Empty,
+                "Empresa",
+                "Fecha de inicio de actividades de la empresa");
+
+            Mensaje = "Datos de la empresa guardados correctamente.";
+        }
+        finally
+        {
+            Guardando = false;
+        }
+    }
+}

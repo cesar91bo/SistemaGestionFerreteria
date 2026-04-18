@@ -1,0 +1,174 @@
+﻿@* Components/Pages/Configuracion/Configuracion.razor *@
+
+@using SistemaGestionFerreteria.Components.Pages.Configuracion.General
+@using SistemaGestionFerreteria.Components.Pages.Configuracion.Empresa
+@using SistemaGestionFerreteria.Components.Pages.Configuracion.Categoria
+@using SistemaGestionFerreteria.Components.Pages.Configuracion.Proveedores
+@using SistemaGestionFerreteria.Components.Pages.Configuracion.Unidades
+
+@page "/configuracion"
+@rendermode InteractiveServer
+
+<PageTitle>Configuración</PageTitle>
+
+<div class="configuracion-page">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h2 class="mb-1">Configuración</h2>
+            <p class="text-secondary mb-0">
+                Administrá los parámetros generales del sistema.
+            </p>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs nav-configuracion mb-4">
+        <li class="nav-item">
+            <button type="button"
+                    class="nav-link @(TabActiva == "General" ? "active" : "")"
+                    @onclick='() => CambiarTab("General")'>
+                General
+            </button>
+        </li>
+
+        <li class="nav-item">
+            <button type="button"
+                    class="nav-link @(TabActiva == "Empresa" ? "active" : "")"
+                    @onclick='() => CambiarTab("Empresa")'>
+                Empresa
+            </button>
+        </li>
+
+        <li class="nav-item">
+            <button type="button"
+                    class="nav-link @(TabActiva == "Categorias" ? "active" : "")"
+                    @onclick='() => CambiarTab("Categorias")'>
+                Categorías
+            </button>
+        </li>
+
+        <li class="nav-item">
+            <button type="button"
+                    class="nav-link @(TabActiva == "Proveedores" ? "active" : "")"
+                    @onclick='() => CambiarTab("Proveedores")'>
+                Proveedores
+            </button>
+        </li>
+
+        <li class="nav-item">
+            <button type="button"
+                    class="nav-link @(TabActiva == "Unidades" ? "active" : "")"
+                    @onclick='() => CambiarTab("Unidades")'>
+                Unidades
+            </button>
+        </li>
+    </ul>
+
+    <div class="card configuracion-card shadow-sm border-0">
+        <div class="card-body p-4">
+
+            @if (TabActiva == "General")
+            {
+                <GeneralPage />
+            }
+            else if (TabActiva == "Empresa")
+            {
+                <EmpresaPage />
+            }
+            else if (TabActiva == "Categorias")
+            {
+                <CategoriasPage />
+            }
+            else if (TabActiva == "Proveedores")
+            {
+                <ProveedoresPage />
+            }
+            else if (TabActiva == "Unidades")
+            {
+                <UnidadesPage />
+            }
+
+        </div>
+    </div>
+</div>
+
+<style>
+    .configuracion-page {
+        padding: 1rem 0 2rem 0;
+    }
+
+    .configuracion-page h2 {
+        color: #ffffff;
+        font-weight: 700;
+        font-size: 2rem;
+    }
+
+    .configuracion-page .text-secondary {
+        color: rgba(255,255,255,.65) !important;
+    }
+
+    .nav-configuracion {
+        border-bottom: 1px solid rgba(255,255,255,.12);
+        gap: .5rem;
+    }
+
+    .nav-configuracion .nav-link {
+        background: transparent;
+        border: none;
+        border-radius: 14px 14px 0 0;
+        color: rgba(255,255,255,.65);
+        font-weight: 600;
+        padding: .85rem 1.4rem;
+        transition: all .2s ease;
+    }
+
+    .nav-configuracion .nav-link:hover {
+        color: #ffffff;
+        background: rgba(255,255,255,.05);
+    }
+
+    .nav-configuracion .nav-link.active {
+        color: #ffffff;
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        box-shadow: 0 8px 20px rgba(245, 158, 11, .25);
+    }
+
+    .configuracion-card {
+        background: linear-gradient(135deg, rgba(30,41,59,.95), rgba(17,24,39,.95));
+        border: 1px solid rgba(255,255,255,.08) !important;
+        border-radius: 22px;
+        overflow: hidden;
+    }
+
+    .configuracion-card .card-body {
+        min-height: 520px;
+    }
+
+    @@media (max-width: 768px) {
+        .nav-configuracion {
+            overflow-x: auto;
+            flex-wrap: nowrap;
+            padding-bottom: .5rem;
+        }
+
+        .nav-configuracion .nav-item {
+            flex: 0 0 auto;
+        }
+
+        .configuracion-card .card-body {
+            padding: 1rem !important;
+            min-height: auto;
+        }
+    }
+</style>
+
+@code {
+    private string TabActiva = "General";
+
+    private void CambiarTab(string tab)
+    {
+        if (TabActiva == tab)
+            return;
+
+        TabActiva = tab;
+    }
+}

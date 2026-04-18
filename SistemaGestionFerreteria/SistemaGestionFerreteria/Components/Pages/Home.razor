@@ -1,0 +1,131 @@
+﻿@page "/"
+
+<PageTitle>Home</PageTitle>
+
+<div class="container-fluid py-4">
+
+    <div class="mb-4">
+        <h1 class="fw-bold text-white mb-1">Dashboard</h1>
+        <p class="text-secondary mb-0">
+            Resumen general del sistema de ferretería.
+        </p>
+    </div>
+
+    <div class="row g-3 mb-4">
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="dashboard-card">
+                <div class="dashboard-label">Ventas de hoy</div>
+                <div class="dashboard-value">$ 0</div>
+                <div class="dashboard-detail">0 comprobantes</div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="dashboard-card">
+                <div class="dashboard-label">Caja</div>
+                <div class="dashboard-value">$ 0</div>
+                <div class="dashboard-detail">Sin movimientos</div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="dashboard-card">
+                <div class="dashboard-label">Productos</div>
+                <div class="dashboard-value">0</div>
+                <div class="dashboard-detail">Sin stock bajo</div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="dashboard-card">
+                <div class="dashboard-label">Clientes</div>
+                <div class="dashboard-value">0</div>
+                <div class="dashboard-detail">Registrados</div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="row g-3">
+
+        <div class="col-12 col-xl-8">
+            <div class="panel-card">
+                <div class="panel-header">
+                    Últimos movimientos
+                </div>
+
+                <div class="panel-body text-secondary">
+                    Todavía no hay movimientos para mostrar.
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-4">
+            <div class="panel-card">
+                <div class="panel-header">
+                    Alertas
+                </div>
+
+                <div class="panel-body text-secondary">
+                    No hay alertas pendientes.
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    .dashboard-card {
+        background: linear-gradient(135deg, #1e293b 0%, #111827 100%);
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 18px;
+        padding: 1.25rem;
+        min-height: 140px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        box-shadow: 0 8px 24px rgba(0,0,0,.18);
+    }
+
+    .dashboard-label {
+        color: #94a3b8;
+        font-size: .95rem;
+        margin-bottom: .5rem;
+    }
+
+    .dashboard-value {
+        color: #fff;
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .dashboard-detail {
+        margin-top: .75rem;
+        color: #cbd5e1;
+        font-size: .9rem;
+    }
+
+    .panel-card {
+        background: linear-gradient(135deg, #1e293b 0%, #111827 100%);
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 18px;
+        overflow: hidden;
+        min-height: 260px;
+        box-shadow: 0 8px 24px rgba(0,0,0,.18);
+    }
+
+    .panel-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid rgba(255,255,255,.08);
+        color: #fff;
+        font-size: 1.05rem;
+        font-weight: 600;
+    }
+
+    .panel-body {
+        padding: 1.25rem;
+    }
+</style>

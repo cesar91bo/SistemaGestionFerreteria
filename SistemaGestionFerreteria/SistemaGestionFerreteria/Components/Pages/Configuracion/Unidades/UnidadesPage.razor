@@ -1,0 +1,273 @@
+﻿@using SistemaGestionFerreteria.Application.Features.Unidades.Models
+@using SistemaGestionFerreteria.Application.Interfaces
+
+@inject IUnidadMedidaService UnidadService
+@rendermode InteractiveServer
+
+<div class="container py-4" style="max-width: 1200px;">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">Unidades</h4>
+
+        <button class="btn btn-primary"
+                @onclick="NuevaUnidad">
+            Nueva unidad
+        </button>
+    </div>
+
+    <div class="row">
+        <div class="col-md-5">
+            <div class="card shadow-sm">
+                <div class="card-body">
+
+                    <input class="form-control mb-3"
+                           placeholder="Buscar unidad..."
+                           @bind="TextoBusqueda"
+                           @bind:event="oninput" />
+
+                    @if (UnidadesFiltradas.Any())
+                    {
+                        <div class="list-group overflow-auto" style="max-height: 320px;">
+                            @foreach (var unidad in UnidadesFiltradas)
+                            {
+                                <button type="button"
+                                        class="list-group-item border-0 mb-1 rounded px-3 py-3 unidad-item @(UnidadSeleccionada?.IdUnidadMedida == unidad.IdUnidadMedida ? "unidad-item-seleccionada" : "")"
+                                        @onclick="() => SeleccionarUnidad(unidad)">
+
+                                    <div class="fw-semibold">
+                                        @unidad.Descripcion
+                                    </div>
+
+                                    @if (!string.IsNullOrWhiteSpace(unidad.Abreviatura))
+                                    {
+                                        <small class="text-muted d-block">
+                                            @unidad.Abreviatura
+                                        </small>
+                                    }
+
+                                    @if (!unidad.Activo)
+                                    {
+                                        <small>Inactiva</small>
+                                    }
+                                </button>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-muted">
+                            No hay unidades cargadas.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-7">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    @(UnidadEditando?.IdUnidadMedida == 0
+                        ? "Nueva unidad"
+                        : "Editar unidad")
+                </div>
+
+                <div class="card-body">
+                    @if (UnidadEditando is not null)
+                    {
+                        <EditForm Model="UnidadEditando"
+                                  OnValidSubmit="GuardarUnidad">
+
+                            <DataAnnotationsValidator />
+
+                            <div class="mb-3">
+                                <label class="form-label">Descripción</label>
+
+                                <InputText class="form-control"
+                                           @bind-Value="UnidadEditando.Descripcion" />
+
+                               <ValidationMessage For="@(() => UnidadEditando.Descripcion)" class="validation-message" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Abreviatura</label>
+
+                                <InputText class="form-control"
+                                           @bind-Value="UnidadEditando.Abreviatura" />
+
+                                <small class="text-muted">
+                                    Ejemplo: kg, un, lt, cm
+                                </small>
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(MensajeError))
+                            {
+                                <div class="text-danger mb-3">
+                                    @MensajeError
+                                </div>
+                            }
+
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-success">
+                                    Guardar
+                                </button>
+
+                                <button type="button"
+                                        class="btn btn-secondary"
+                                        @onclick="Cancelar">
+                                    Cancelar
+                                </button>
+
+                                @if (UnidadEditando.IdUnidadMedida != 0)
+                                {
+                                    <button type="button"
+                                            class="btn btn-danger ms-auto"
+                                            @onclick="EliminarUnidad">
+                                        Eliminar
+                                    </button>
+                                }
+                            </div>
+                        </EditForm>
+                    }
+                    else
+                    {
+                        <div class="text-muted">
+                            Seleccioná una unidad o creá una nueva.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<UnidadMedidaViewModel> Unidades = new();
+    private string? MensajeError;
+
+    private UnidadMedidaViewModel? UnidadSeleccionada;
+    private UnidadMedidaViewModel? UnidadEditando;
+
+    private string TextoBusqueda = string.Empty;
+
+    private IEnumerable<UnidadMedidaViewModel> UnidadesFiltradas =>
+        string.IsNullOrWhiteSpace(TextoBusqueda)
+            ? Unidades
+            : Unidades.Where(x =>
+                !string.IsNullOrWhiteSpace(x.Descripcion) &&
+                x.Descripcion.Contains(TextoBusqueda, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarUnidadesAsync();
+    }
+
+    private async Task CargarUnidadesAsync()
+    {
+        Unidades = await UnidadService.ObtenerTodasAsync();
+
+        UnidadSeleccionada = null;
+        UnidadEditando = null;
+    }
+
+    private void SeleccionarUnidad(UnidadMedidaViewModel unidad)
+    {
+        UnidadSeleccionada = unidad;
+        MensajeError = null;
+
+        UnidadEditando = new UnidadMedidaViewModel
+        {
+            IdUnidadMedida = unidad.IdUnidadMedida,
+            Descripcion = unidad.Descripcion,
+            Abreviatura = unidad.Abreviatura,
+            Activo = unidad.Activo
+        };
+    }
+
+    private void NuevaUnidad()
+    {
+        UnidadSeleccionada = null;
+        MensajeError = null;
+
+        UnidadEditando = new UnidadMedidaViewModel
+        {
+            IdUnidadMedida = 0,
+            Descripcion = string.Empty,
+            Abreviatura = string.Empty,
+            Activo = true
+        };
+    }
+
+    private async Task GuardarUnidad()
+    {
+        if (UnidadEditando is null)
+            return;
+
+        MensajeError = null;
+
+        try
+        {
+            if (UnidadEditando.IdUnidadMedida == 0)
+            {
+                await UnidadService.CrearAsync(UnidadEditando);
+            }
+            else
+            {
+                await UnidadService.ActualizarAsync(UnidadEditando);
+            }
+
+            await CargarUnidadesAsync();
+        }
+        catch (Exception ex)
+        {
+            MensajeError = ex.Message;
+        }
+    }
+
+    private void Cancelar()
+    {
+        MensajeError = null;
+        UnidadSeleccionada = null;
+        UnidadEditando = null;
+    }
+
+    private async Task EliminarUnidad()
+    {
+        if (UnidadEditando is null || UnidadEditando.IdUnidadMedida == 0)
+            return;
+
+        await UnidadService.DarDeBajaAsync(UnidadEditando.IdUnidadMedida);
+
+        await CargarUnidadesAsync();
+    }
+}
+
+<style>
+    .unidad-item {
+        background: rgba(255,255,255,0.05);
+        color: #f5f5f5;
+        transition: all .15s ease;
+        cursor: pointer;
+    }
+
+        .unidad-item:hover {
+            background: rgba(255,255,255,0.10);
+            transform: translateX(2px);
+        }
+
+    .unidad-item-seleccionada {
+        background: linear-gradient(90deg, #2563eb, #3b82f6);
+        color: white;
+        font-weight: 600;
+    }
+
+    .unidad-item-seleccionada:hover {
+        background: linear-gradient(90deg, #2563eb, #3b82f6);
+        color: white;
+    }
+    .validation-message {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: block;
+}
+</style>

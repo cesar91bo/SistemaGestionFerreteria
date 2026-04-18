@@ -1,0 +1,674 @@
+﻿@using SistemaGestionFerreteria.Application.Features.Productos.Models
+@using SistemaGestionFerreteria.Application.Interfaces
+@using SistemaGestionFerreteria.Domain.Enums
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="mb-0">
+                @(Modelo?.IdProducto > 0 ? "Editar producto" : "Nuevo producto")
+            </h4>
+
+            @if (Modelo?.IdProducto > 0)
+            {
+                <span class="badge bg-secondary">
+                    ID: @Modelo.IdProducto
+                </span>
+            }
+        </div>
+
+        @if (Modelo == null)
+        {
+            <div class="alert alert-info mb-0">
+                Seleccioná un producto de la lista o presioná "Nuevo producto".
+            </div>
+        }
+        else
+        {
+            <EditForm Model="Modelo" OnValidSubmit="@(async () => await GuardarProductoAsync())">
+                <DataAnnotationsValidator />
+
+                <div class="row g-3">
+
+                    <div class="col-md-6">
+                        <label class="form-label">Código producto</label>
+                        <input class="form-control" @bind="Modelo.CodigoProducto" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Código de barras</label>
+                        <input class="form-control" @bind="Modelo.CodigoBarra" />
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Nombre</label>
+                        <InputText class="form-control" @bind-Value="Modelo.Descripcion" />
+                        <ValidationMessage For="@(() => Modelo.Descripcion)" />
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Observación</label>
+                        <textarea class="form-control" rows="3" @bind="Modelo.Observacion"></textarea>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Buscar categoría</label>
+
+                        <input class="form-control"
+                               @bind="FiltroCategoria"
+                               @bind:event="oninput"
+                               placeholder="Escribí para filtrar categorías" />
+
+                        <label class="form-label mt-2">Categoría</label>
+
+                        <InputSelect class="form-select" @bind-Value="Modelo.IdCategoria">
+                            <option value="0">Seleccione una categoría</option>
+
+                            @foreach (var categoria in CategoriasFiltradas)
+                            {
+                                <option value="@categoria.Id">
+                                    @categoria.Descripcion
+                                </option>
+                            }
+                        </InputSelect>
+
+                        <ValidationMessage For="@(() => Modelo.IdCategoria)" />
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Buscar unidad</label>
+
+                        <input class="form-control"
+                               @bind="FiltroUnidad"
+                               @bind:event="oninput"
+                               placeholder="Escribí para filtrar unidades" />
+
+                        <label class="form-label mt-2">Unidad de medida</label>
+
+                        <InputSelect class="form-select"
+                                     @bind-Value="Modelo.IdUnidadMedida">
+                            <option value="">Sin unidad</option>
+
+                            @foreach (var unidad in UnidadesFiltradas)
+                            {
+                                <option value="@unidad.Id">
+                                    @unidad.Descripcion
+                                </option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Buscar proveedor</label>
+
+                        <input class="form-control"
+                               @bind="FiltroProveedor"
+                               @bind:event="oninput"
+                               placeholder="Escribí para filtrar proveedores" />
+
+                        <label class="form-label mt-2">Proveedor</label>
+
+                        <select class="form-select" @bind="IdProveedorSeleccionado">
+                            <option value="">Sin proveedor</option>
+
+                            @foreach (var proveedor in ProveedoresFiltrados)
+                            {
+                                <option value="@proveedor.Id">
+                                    @proveedor.Descripcion
+                                </option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-12 mt-2">
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="chkLlevaStock"
+                                   @bind="Modelo.LlevaStock" />
+
+                            <label class="form-check-label" for="chkLlevaStock">
+                                Lleva stock
+                            </label>
+                        </div>
+                    </div>
+
+                    @if (Modelo.LlevaStock)
+                    {
+                        <div class="col-md-6">
+                            <label class="form-label">Stock actual</label>
+
+                            <input class="form-control"
+                                   @bind="Modelo.StockActual"
+                                   type="number"
+                                   step="0.01" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Stock mínimo</label>
+
+                            <input class="form-control"
+                                   @bind="Modelo.StockMinimo"
+                                   type="number"
+                                   step="0.01" />
+                        </div>
+                    }
+
+                    @if (Modelo.IdProducto > 0)
+                    {
+                        <div class="col-12 mt-4">
+                            <div class="card border-0 shadow-sm bg-dark-subtle precio-card">
+                                <div class="card-body">
+
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div>
+                                            <h5 class="mb-1">Precios</h5>
+                                            <small class="text-secondary">
+                                                Configurá el precio vigente del producto.
+                                            </small>
+                                        </div>
+
+                                        @if (PrecioActual != null)
+                                        {
+                                            <span class="badge bg-success">
+                                                Precio vigente
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning text-dark">
+                                                Sin precio vigente
+                                            </span>
+                                        }
+                                    </div>
+
+                                    <div class="row g-3">
+
+                                        <div class="col-md-4">
+                                            <label class="form-label">Precio costo</label>
+
+                                            <div class="input-group">
+                                                <span class="input-group-text">$</span>
+
+                                                <InputNumber TValue="decimal?"
+                                                             class="form-control"
+                                                             Value="PrecioEdicion.PrecioCosto"
+                                                             ValueChanged="@(valor => OnPrecioCostoChanged(valor))"
+                                                             ValueExpression="@(() => PrecioEdicion.PrecioCosto)" />
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label class="form-label">% ganancia</label>
+
+                                            <div class="input-group">
+                                                <InputNumber TValue="decimal?"
+                                                             class="form-control"
+                                                             Value="PrecioEdicion.PorcentajeGanancia"
+                                                             ValueChanged="@(valor => OnPorcentajeGananciaChanged(valor))"
+                                                             ValueExpression="@(() => PrecioEdicion.PorcentajeGanancia)" />
+
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label class="form-label">IVA</label>
+
+                                            <InputSelect TValue="TipoIvaProducto"
+                                                         class="form-select"
+                                                         Value="PrecioEdicion.TipoIva"
+                                                         ValueChanged="@(valor => OnTipoIvaChanged(valor))"
+                                                         ValueExpression="@(() => PrecioEdicion.TipoIva)">
+                                                <option value="@TipoIvaProducto.Iva21">21%</option>
+                                                <option value="@TipoIvaProducto.Iva105">10,5%</option>
+                                                <option value="@TipoIvaProducto.Iva27">27%</option>
+                                                <option value="@TipoIvaProducto.Exento">Exento</option>
+                                            </InputSelect>
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label class="form-label">Precio venta</label>
+
+                                            <div class="input-group">
+                                                <span class="input-group-text">$</span>
+
+                                                <InputNumber TValue="decimal"
+                                                             class="form-control"
+                                                             Value="PrecioEdicion.PrecioVenta"
+                                                             ValueChanged="@(valor => OnPrecioVentaChanged(valor))"
+                                                             ValueExpression="@(() => PrecioEdicion.PrecioVenta)" />
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label class="form-label">Precio especial</label>
+
+                                            <div class="input-group">
+                                                <span class="input-group-text">$</span>
+
+                                                <InputNumber TValue="decimal?"
+                                                             class="form-control"
+                                                             @bind-Value="PrecioEdicion.PrecioEspecial" />
+                                            </div>
+                                        </div>
+
+
+                                        <div class="col-md-4">
+                                            <button type="button"
+                                                    class="btn btn-warning w-100 mb-2"
+                                                    @onclick="GuardarPrecioAsync">
+                                                Guardar precio
+                                            </button>
+
+                                            @if (!string.IsNullOrWhiteSpace(ErrorPrecio))
+                                            {
+                                                <div class="alert alert-danger py-2 px-3 mb-0 error-precio">
+                                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                                    @ErrorPrecio
+                                                </div>
+                                            }
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <div class="precio-resumen">
+
+                                                <div class="precio-resumen-item">
+                                                    <span>Margen estimado</span>
+
+                                                    <strong>
+                                                        @(PrecioEdicion.PorcentajeGanancia.HasValue
+                                                            ? $"{PrecioEdicion.PorcentajeGanancia.Value:N2}%"
+                                                            : "-")
+                                                    </strong>
+                                                </div>
+
+                                                <div class="precio-resumen-item">
+                                                    <span>IVA aplicado</span>
+
+                                                    <strong>
+                                                        @($"{PrecioEdicion.PorcentajeIvaValor:N2}%")
+                                                    </strong>
+                                                </div>
+
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6"></div>
+
+                                        <div class="col-12 mt-3">
+                                            <h6 class="mb-3">Historial de precios</h6>
+
+                                            <div class="table-responsive">
+                                                <table class="table table-dark table-hover align-middle mb-0 tabla-precios">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Desde</th>
+                                                            <th>Hasta</th>
+                                                            <th class="text-end">Costo</th>
+                                                            <th class="text-end">% Gan.</th>
+                                                            <th class="text-end">Venta</th>
+                                                            <th class="text-end">Especial</th>
+                                                            <th class="text-end">IVA</th>
+                                                        </tr>
+                                                    </thead>
+
+                                                    <tbody>
+                                                        @if (HistorialPrecios.Any())
+                                                        {
+                                                            @foreach (var item in HistorialPrecios)
+                                                            {
+                                                                <tr class="@(item.FechaHasta == null ? "table-success" : "")">
+                                                                    <td>@item.FechaDesde.ToString("dd/MM/yyyy HH:mm")</td>
+
+                                                                    <td>
+                                                                        @(item.FechaHasta.HasValue
+                                                                            ? item.FechaHasta.Value.ToString("dd/MM/yyyy HH:mm")
+                                                                            : "Vigente")
+                                                                    </td>
+
+                                                                    <td class="text-end">
+                                                                        @(item.PrecioCosto.HasValue
+                                                                            ? $"$ {item.PrecioCosto.Value:N2}"
+                                                                            : "-")
+                                                                    </td>
+
+                                                                    <td class="text-end">
+                                                                        @(item.PorcentajeGanancia.HasValue
+                                                                            ? $"{item.PorcentajeGanancia.Value:N2}%"
+                                                                            : "-")
+                                                                    </td>
+
+                                                                    <td class="text-end">
+                                                                        @($"$ {item.PrecioVenta:N2}")
+                                                                    </td>
+
+                                                                    <td class="text-end">
+                                                                        @(item.PrecioEspecial.HasValue
+                                                                            ? $"$ {item.PrecioEspecial.Value:N2}"
+                                                                            : "-")
+                                                                    </td>
+
+                                                                    <td class="text-end">
+                                                                        @switch (item.TipoIva)
+                                                                        {
+                                                                            case TipoIvaProducto.Exento:
+                                                                                <span>Exento</span>
+                                                                                break;
+
+                                                                            case TipoIvaProducto.Iva105:
+                                                                                <span>10,5%</span>
+                                                                                break;
+
+                                                                            case TipoIvaProducto.Iva21:
+                                                                                <span>21%</span>
+                                                                                break;
+
+                                                                            case TipoIvaProducto.Iva27:
+                                                                                <span>27%</span>
+                                                                                break;
+                                                                        }
+                                                                    </td>
+                                                                </tr>
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            <tr>
+                                                                <td colspan="7" class="text-center text-secondary py-4">
+                                                                    Todavía no hay precios cargados.
+                                                                </td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="col-12 mt-4 d-flex gap-2">
+                        <button type="submit" class="btn btn-success">
+                            Guardar
+                        </button>
+
+                        <button class="btn btn-outline-secondary" @onclick="OnCancelar">
+                            Cancelar
+                        </button>
+
+                        @if (Modelo.IdProducto > 0)
+                        {
+                            @if (Modelo.Activo)
+                            {
+                                <button class="btn btn-outline-danger ms-auto" @onclick="OnDarDeBaja">
+                                    Dar de baja
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-outline-success ms-auto" @onclick="OnReactivar">
+                                    Reactivar
+                                </button>
+                            }
+                        }
+                    </div>
+                </div>
+            </EditForm>
+        }
+
+    </div>
+</div>
+
+@code {
+    [Parameter] public ProductoViewModel? Modelo { get; set; }
+
+    [Parameter] public List<OpcionComboViewModel> Categorias { get; set; } = new();
+    [Parameter] public List<OpcionComboViewModel> Proveedores { get; set; } = new();
+
+    [Parameter] public EventCallback OnGuardar { get; set; }
+    [Parameter] public EventCallback OnCancelar { get; set; }
+    [Parameter] public EventCallback OnDarDeBaja { get; set; }
+    [Parameter] public EventCallback OnReactivar { get; set; }
+
+    [Parameter]
+    public List<OpcionComboViewModel> UnidadesMedida { get; set; } = new();
+
+    [Parameter] public ProductoPrecioEdicionViewModel PrecioEdicion { get; set; } = new();
+
+    [Parameter] public ProductoPrecioHistorialViewModel? PrecioActual { get; set; }
+
+    [Parameter] public List<ProductoPrecioHistorialViewModel> HistorialPrecios { get; set; } = new();
+
+    [Parameter] public EventCallback OnGuardarPrecio { get; set; }
+
+    [Inject]
+    private IParametroService ParametroService { get; set; } = default!;
+
+    private string FiltroCategoria { get; set; } = string.Empty;
+    private string FiltroProveedor { get; set; } = string.Empty;
+    private string FiltroUnidad { get; set; } = string.Empty;
+
+    private IEnumerable<OpcionComboViewModel> CategoriasFiltradas =>
+        string.IsNullOrWhiteSpace(FiltroCategoria)
+            ? Categorias
+            : Categorias.Where(x => x.Descripcion.Contains(FiltroCategoria, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<OpcionComboViewModel> ProveedoresFiltrados =>
+        string.IsNullOrWhiteSpace(FiltroProveedor)
+            ? Proveedores
+            : Proveedores.Where(x => x.Descripcion.Contains(FiltroProveedor, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<OpcionComboViewModel> UnidadesFiltradas =>
+    string.IsNullOrWhiteSpace(FiltroUnidad)
+        ? UnidadesMedida
+        : UnidadesMedida.Where(x => x.Descripcion.Contains(FiltroUnidad, StringComparison.OrdinalIgnoreCase));
+
+    private string? IdProveedorSeleccionado
+    {
+        get => Modelo?.IdProveedor?.ToString();
+        set
+        {
+            if (Modelo == null)
+                return;
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                Modelo.IdProveedor = null;
+            }
+            else
+            {
+                Modelo.IdProveedor = int.Parse(value);
+            }
+        }
+    }
+
+    private string? ErrorPrecio;
+
+    private async Task GuardarProductoAsync()
+    {
+        await OnGuardar.InvokeAsync();
+    }
+    private async Task GuardarPrecioAsync()
+    {
+        ErrorPrecio = null;
+
+        try
+        {
+            await OnGuardarPrecio.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorPrecio = ex.Message;
+        }
+    }
+
+    private void OnPrecioCostoChanged(decimal? valor)
+    {
+        PrecioEdicion.PrecioCosto = valor;
+        PrecioEdicion.UltimoCampoEditado = CampoPrecioEditado.PrecioCosto;
+
+        RecalcularPrecio();
+    }
+
+    private void OnPorcentajeGananciaChanged(decimal? valor)
+    {
+        PrecioEdicion.PorcentajeGanancia = valor;
+        PrecioEdicion.UltimoCampoEditado = CampoPrecioEditado.PorcentajeGanancia;
+
+        RecalcularPrecio();
+    }
+
+    private void OnPrecioVentaChanged(decimal valor)
+    {
+        PrecioEdicion.PrecioVenta = valor;
+        PrecioEdicion.UltimoCampoEditado = CampoPrecioEditado.PrecioVenta;
+
+        RecalcularPrecio();
+    }
+
+    private void RecalcularPrecio()
+    {
+        if (!PrecioEdicion.PrecioCosto.HasValue || PrecioEdicion.PrecioCosto.Value <= 0)
+        {
+            PrecioEdicion.PorcentajeGanancia = null;
+            return;
+        }
+
+        var costo = PrecioEdicion.PrecioCosto.Value;
+        var factorIva = 1 + (PrecioEdicion.PorcentajeIvaValor / 100m);
+
+        if (PrecioEdicion.UltimoCampoEditado == CampoPrecioEditado.PrecioCosto
+            || PrecioEdicion.UltimoCampoEditado == CampoPrecioEditado.PorcentajeGanancia)
+        {
+            if (PrecioEdicion.PorcentajeGanancia.HasValue)
+            {
+                var precioSinIva = costo * (1 + (PrecioEdicion.PorcentajeGanancia.Value / 100m));
+
+                PrecioEdicion.PrecioVenta = Math.Round(
+                    precioSinIva * factorIva,
+                    2);
+            }
+        }
+        else if (PrecioEdicion.UltimoCampoEditado == CampoPrecioEditado.PrecioVenta)
+        {
+            var precioSinIva = PrecioEdicion.PrecioVenta / factorIva;
+
+            PrecioEdicion.PorcentajeGanancia = Math.Round(
+                ((precioSinIva - costo) / costo) * 100m,
+                2);
+        }
+    }
+
+    private void OnTipoIvaChanged(TipoIvaProducto valor)
+    {
+        PrecioEdicion.TipoIva = valor;
+
+        RecalcularPrecio();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Modelo == null || Modelo.IdProducto <= 0)
+            return;
+
+        if (!PrecioEdicion.PorcentajeGanancia.HasValue)
+        {
+            var gananciaDefecto = await ParametroService.ObtenerDecimalAsync("GANANCIA_PRODUCTO_DEFECTO");
+
+            if (gananciaDefecto.HasValue)
+            {
+                PrecioEdicion.PorcentajeGanancia = gananciaDefecto.Value;
+            }
+        }
+    }
+}
+
+<style>
+    .validation-message {
+        color: #dc3545;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+        display: block;
+    }
+
+    .invalid {
+        border-color: #dc3545 !important;
+    }
+
+    .precio-card {
+        background: linear-gradient(145deg, #1f2937, #111827);
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 18px;
+    }
+
+        .precio-card .form-control,
+        .precio-card .input-group-text {
+            background-color: #111827;
+            border-color: rgba(255,255,255,.08);
+            color: #fff;
+        }
+
+            .precio-card .form-control::placeholder {
+                color: rgba(255,255,255,.35);
+            }
+
+        .precio-card .input-group-text {
+            color: #f59e0b;
+            font-weight: 600;
+        }
+
+    .precio-resumen {
+        display: flex;
+        gap: 1rem;
+        height: 100%;
+    }
+
+    .precio-resumen-item {
+        flex: 1;
+        background: rgba(255,255,255,.04);
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 14px;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+        .precio-resumen-item span {
+            font-size: .85rem;
+            color: rgba(255,255,255,.6);
+            margin-bottom: .35rem;
+        }
+
+        .precio-resumen-item strong {
+            font-size: 1.35rem;
+            color: #f8fafc;
+        }
+
+    .tabla-precios {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+        .tabla-precios thead th {
+            background-color: rgba(255,255,255,.06);
+            border-bottom: 1px solid rgba(255,255,255,.08);
+            color: #f8fafc;
+            font-weight: 600;
+        }
+
+        .tabla-precios tbody td {
+            border-color: rgba(255,255,255,.05);
+        }
+        .error-precio {
+    border-radius: 12px;
+    border: 1px solid rgba(220, 53, 69, 0.35);
+    background: rgba(220, 53, 69, 0.15);
+    color: #ffb3b3;
+}
+</style>

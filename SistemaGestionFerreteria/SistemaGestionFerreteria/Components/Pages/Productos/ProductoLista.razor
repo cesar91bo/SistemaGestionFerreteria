@@ -1,0 +1,234 @@
+﻿@using SistemaGestionFerreteria.Application.Features.Productos.Models
+
+<div class="card shadow-sm border-0 h-100">
+    <div class="card-body d-flex flex-column">
+
+        <div class="d-flex gap-2 mb-3">
+            <input class="form-control"
+                   placeholder="Buscar por descripción, código o proveedor"
+                   @bind="Busqueda" />
+
+            <button class="btn btn-outline-secondary" @onclick="Buscar">
+                Buscar
+            </button>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Productos</h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary"
+                        @onclick="() => OnNuevo.InvokeAsync()">
+                    Nuevo producto
+                </button>
+
+                <button class="btn btn-outline-light"
+                        @onclick="AbrirActualizacionPrecios">
+                    <i class="bi bi-currency-dollar me-1"></i>
+                    Actualizar precios
+                </button>
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+
+            <div class="form-check m-0">
+                <input class="form-check-input"
+                       type="checkbox"
+                       id="chkBaja"
+                       @bind="MostrarDadosDeBaja" />
+
+                <label class="form-check-label" for="chkBaja">
+                    Mostrar dados de baja
+                </label>
+            </div>
+
+            <select class="form-select categoria-select" @bind="FiltroCategoria">
+                <option value="">Todas las categorías</option>
+
+                @foreach (var categoria in CategoriasDisponibles)
+                {
+                    <option value="@categoria">@categoria</option>
+                }
+            </select>
+        </div>
+
+        <div class="table-responsive flex-grow-1" style="max-height: 600px;">
+            <table class="table table-hover align-middle">
+                <thead class="table-light sticky-top">
+                    <tr>
+                        <th style="width: 140px;">Código</th>
+                        <th>Descripción</th>
+                        <th style="width: 120px;">Stock</th>
+                        <th style="width: 140px;" class="text-end">Precio</th>
+                        <th style="width: 100px;">Estado</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @if (ProductosFiltrados.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                No hay productos para mostrar
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in ProductosFiltrados)
+                        {
+                            <tr class="
+                                @(ProductoSeleccionado?.IdProducto == item.IdProducto ? "table-primary" : "")
+                                @(!item.TienePrecioVigente ? "fila-sin-precio" : "")"
+                                style="cursor:pointer;"
+                                @onclick="() => Seleccionar(item)">
+
+                                <td>
+                                    @item.CodigoProducto
+                                </td>
+
+                                <td>
+                                    <div class="fw-semibold">@item.Descripcion</div>
+
+                                    @if (!string.IsNullOrWhiteSpace(item.Observacion))
+                                    {
+                                        <div class="small text-muted">@item.Observacion</div>
+                                    }
+
+                                    @if (!string.IsNullOrWhiteSpace(item.CategoriaDescripcion))
+                                    {
+                                        <div class="small text-secondary">@item.CategoriaDescripcion</div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(item.ProveedorDescripcion))
+                                    {
+                                        <div class="small text-muted">
+                                            Prov: @item.ProveedorDescripcion
+                                        </div>
+                                    }
+                                </td>
+
+                                <td>
+                                    @if (item.LlevaStock)
+                                    {
+                                        @(item.StockActual ?? 0)
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">No controla</span>
+                                    }
+                                </td>
+
+                                <td class="text-end">
+                                    @if (item.TienePrecioVigente)
+                                    {
+                                        <span class="fw-semibold">
+                                            $ @item.PrecioVentaActual!.Value.ToString("N2")
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <div class="d-flex flex-column align-items-end">
+                                            <span class="badge bg-warning text-dark">
+                                                Sin precio
+                                            </span>
+
+                                            <small class="text-danger mt-1">
+                                                Debe cargar un precio
+                                            </small>
+                                        </div>
+                                    }
+                                </td>
+
+                                <td>
+                                    @if (item.Activo)
+                                    {
+                                        <span class="badge bg-success">Activo</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">Baja</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<ProductoViewModel> Productos { get; set; } = new();
+    [Parameter] public ProductoViewModel? ProductoSeleccionado { get; set; }
+    [Parameter] public EventCallback<ProductoViewModel> OnSeleccionar { get; set; }
+    [Parameter] public EventCallback OnNuevo { get; set; }
+
+    private string Busqueda { get; set; } = string.Empty;
+    private bool MostrarDadosDeBaja { get; set; }
+    private string FiltroCategoria { get; set; } = string.Empty;
+
+    private List<string> CategoriasDisponibles => Productos
+        .Where(x => !string.IsNullOrWhiteSpace(x.CategoriaDescripcion))
+        .Select(x => x.CategoriaDescripcion)
+        .Distinct()
+        .OrderBy(x => x)
+        .ToList();
+
+    private List<ProductoViewModel> ProductosFiltrados => Productos
+        .Where(p => MostrarDadosDeBaja || p.FechaBaja == null)
+        .Where(p =>
+            string.IsNullOrWhiteSpace(Busqueda) ||
+            p.Descripcion.Contains(Busqueda, StringComparison.OrdinalIgnoreCase) ||
+            (!string.IsNullOrWhiteSpace(p.CodigoProducto) &&
+            p.CodigoProducto.Contains(Busqueda, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrWhiteSpace(p.ProveedorDescripcion) &&
+             p.ProveedorDescripcion.Contains(Busqueda, StringComparison.OrdinalIgnoreCase)))
+        .Where(p =>
+            string.IsNullOrWhiteSpace(FiltroCategoria) ||
+            p.CategoriaDescripcion == FiltroCategoria)
+        .OrderBy(p => p.Descripcion)
+        .ToList();
+
+    private Task Seleccionar(ProductoViewModel item)
+    {
+        return OnSeleccionar.InvokeAsync(item);
+    }
+
+    private void Buscar()
+    {
+    }
+
+    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+
+    private void AbrirActualizacionPrecios()
+    {
+        NavigationManager.NavigateTo("/productos/actualizacion-precios");
+    }
+}
+
+<style>
+    .categoria-select {
+        width: 260px;
+        background: #1e293b;
+        border: 1px solid rgba(255,255,255,0.08);
+        color: #f8fafc;
+    }
+
+    .categoria-select:focus {
+        border-color: #f59e0b;
+        box-shadow: 0 0 0 .15rem rgba(245,158,11,.15);
+    }
+
+    .fila-sin-precio {
+        background-color: rgba(255, 193, 7, 0.08);
+    }
+
+    .fila-sin-precio:hover {
+        background-color: rgba(255, 193, 7, 0.16) !important;
+    }
+
+    .fila-sin-precio td {
+        border-color: rgba(255, 193, 7, 0.15);
+    }
+</style>
