@@ -6,7 +6,9 @@
         <div class="d-flex gap-2 mb-3">
             <input class="form-control"
                    placeholder="Buscar por descripción, código o proveedor"
-                   @bind="Busqueda" />
+                   @bind="Busqueda"
+                   @bind:event="oninput"
+                   @onkeydown="OnKeyDownBusqueda" />
 
             <button class="btn btn-outline-secondary" @onclick="Buscar">
                 Buscar
@@ -180,8 +182,11 @@
         .Where(p =>
             string.IsNullOrWhiteSpace(Busqueda) ||
             p.Descripcion.Contains(Busqueda, StringComparison.OrdinalIgnoreCase) ||
-            (!string.IsNullOrWhiteSpace(p.CodigoProducto) &&
-            p.CodigoProducto.Contains(Busqueda, StringComparison.OrdinalIgnoreCase)) ||
+           (!string.IsNullOrWhiteSpace(p.CodigoProducto) &&
+             p.CodigoProducto.Contains(Busqueda, StringComparison.OrdinalIgnoreCase)) ||
+            
+            (!string.IsNullOrWhiteSpace(p.CodigoBarra) &&
+             p.CodigoBarra.Contains(Busqueda, StringComparison.OrdinalIgnoreCase)) ||
             (!string.IsNullOrWhiteSpace(p.ProveedorDescripcion) &&
              p.ProveedorDescripcion.Contains(Busqueda, StringComparison.OrdinalIgnoreCase)))
         .Where(p =>
@@ -189,6 +194,49 @@
             p.CategoriaDescripcion == FiltroCategoria)
         .OrderBy(p => p.Descripcion)
         .ToList();
+
+    private async Task OnKeyDownBusqueda(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            // Si encuentra exactamente 1 producto → asumimos lector
+            if (ProductosFiltrados.Count == 1)
+            {
+                var producto = ProductosFiltrados.First();
+
+                // Selecciona automáticamente
+                await Seleccionar(producto);
+
+                // Limpia el buscador SOLO en este caso
+                Busqueda = string.Empty;
+            }
+        }
+    }
+
+    private async Task OnKeyUpBusqueda(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter")
+            return;
+
+        string codigoLeido = Busqueda.Trim();
+
+        if (string.IsNullOrWhiteSpace(codigoLeido))
+            return;
+
+        var productoPorCodigoBarra = Productos
+            .FirstOrDefault(p =>
+                !string.IsNullOrWhiteSpace(p.CodigoBarra) &&
+                p.CodigoBarra.Equals(codigoLeido, StringComparison.OrdinalIgnoreCase));
+
+        if (productoPorCodigoBarra == null)
+            return;
+
+        await Seleccionar(productoPorCodigoBarra);
+
+        Busqueda = string.Empty;
+
+        await InvokeAsync(StateHasChanged);
+    }
 
     private Task Seleccionar(ProductoViewModel item)
     {

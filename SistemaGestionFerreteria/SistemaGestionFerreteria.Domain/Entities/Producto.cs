@@ -39,5 +39,7 @@
         public DateTime? FechaBaja { get; set; }
 
         public ICollection<ProductoPrecio> Precios { get; set; } = new List<ProductoPrecio>();
+
+        public ICollection<FacturaDetalle> FacturaDetalles { get; set; } = new List<FacturaDetalle>();
     }
 }

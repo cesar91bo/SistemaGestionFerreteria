@@ -13,6 +13,9 @@ namespace SistemaGestionFerreteria.Infrastructure.Persistence
         public DbSet<ProductoPrecio> ProductosPrecios => Set<ProductoPrecio>();
         public DbSet<UnidadMedida> UnidadesMedida => Set<UnidadMedida>();
         public DbSet<Parametro> Parametros => Set<Parametro>();
+        public DbSet<Factura> Facturas => Set<Factura>();
+        public DbSet<FacturaDetalle> FacturaDetalles => Set<FacturaDetalle>();
+        public DbSet<FacturaPago> FacturaPagos => Set<FacturaPago>();
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
@@ -244,6 +247,150 @@ namespace SistemaGestionFerreteria.Infrastructure.Persistence
 
                 entity.Property(x => x.Activo)
                     .HasDefaultValue(true);
+            });
+
+            //Facturas y detalles
+            modelBuilder.Entity<Factura>(entity =>
+            {
+                entity.ToTable("Facturas");
+
+                entity.HasKey(x => x.IdFactura);
+
+                entity.Property(x => x.IdFactura)
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.TipoComprobante)
+                    .HasConversion<int>()
+                    .IsRequired();
+
+                entity.Property(x => x.PuntoVenta)
+                    .IsRequired();
+
+                entity.Property(x => x.NumeroComprobante)
+                    .IsRequired();
+
+                entity.Property(x => x.Fecha)
+                    .HasDefaultValueSql("GETDATE()");
+
+                entity.Property(x => x.Estado)
+                    .HasConversion<int>()
+                    .HasDefaultValue(EstadoFactura.Borrador);
+
+                entity.Property(x => x.CondicionVenta)
+                    .HasConversion<int>()
+                    .IsRequired();
+
+                entity.Property(x => x.Observacion)
+                    .HasMaxLength(500);
+
+                entity.Property(x => x.Subtotal)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(x => x.TotalIva21)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(x => x.TotalIva105)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(x => x.TotalIva27)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(x => x.TotalExento)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(x => x.Total)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(x => x.EnviadaAfip)
+                    .HasDefaultValue(false);
+
+                entity.Property(x => x.Cae)
+                    .HasMaxLength(50);
+
+                entity.Property(x => x.ResultadoAfip)
+                    .HasMaxLength(500);
+
+                entity.Property(x => x.Activo)
+                    .HasDefaultValue(true);
+
+                entity.Property(x => x.FechaAlta)
+                    .HasDefaultValueSql("GETDATE()");
+
+                entity.HasIndex(x => new { x.TipoComprobante, x.PuntoVenta, x.NumeroComprobante })
+                    .IsUnique()
+                    .HasDatabaseName("IX_Facturas_Numero");
+
+                entity.HasOne(x => x.Cliente)
+                    .WithMany(x => x.Facturas)
+                    .HasForeignKey(x => x.IdCliente)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<FacturaDetalle>(entity =>
+            {
+                entity.ToTable("FacturaDetalles");
+
+                entity.HasKey(x => x.IdFacturaDetalle);
+
+                entity.Property(x => x.IdFacturaDetalle)
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.CodigoProducto)
+                    .HasMaxLength(50);
+
+                entity.Property(x => x.Descripcion)
+                    .HasMaxLength(300)
+                    .IsRequired();
+
+                entity.Property(x => x.Cantidad)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(x => x.PrecioUnitario)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(x => x.PorcentajeIva)
+                    .HasColumnType("decimal(5,2)");
+
+                entity.Property(x => x.ImporteIva)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(x => x.Subtotal)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.HasOne(x => x.Factura)
+                    .WithMany(x => x.Detalles)
+                    .HasForeignKey(x => x.IdFactura)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Producto)
+                    .WithMany(x => x.FacturaDetalles)
+                    .HasForeignKey(x => x.IdProducto)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<FacturaPago>(entity =>
+            {
+                entity.ToTable("FacturaPagos");
+
+                entity.HasKey(x => x.IdFacturaPago);
+
+                entity.Property(x => x.IdFacturaPago)
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.FormaPago)
+                    .HasConversion<int>()
+                    .IsRequired();
+
+                entity.Property(x => x.Monto)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(x => x.Referencia)
+                    .HasMaxLength(100);
+
+                entity.HasOne(x => x.Factura)
+                    .WithMany(x => x.Pagos)
+                    .HasForeignKey(x => x.IdFactura)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }

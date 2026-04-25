@@ -25,5 +25,7 @@ namespace SistemaGestionFerreteria.Domain.Entities
         public bool Activo { get; set; } = true;
 
         public DateTime FechaAlta { get; set; }
+
+        public ICollection<Factura> Facturas { get; set; } = new List<Factura>();
     }
 }

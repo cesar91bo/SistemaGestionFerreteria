@@ -1,0 +1,437 @@
+﻿@page "/facturacion"
+@using SistemaGestionFerreteria.Application.Features.Facturacion.Models
+@using SistemaGestionFerreteria.Application.Features.Productos.Models
+@using SistemaGestionFerreteria.Application.Interfaces
+@using Microsoft.JSInterop
+@rendermode InteractiveServer
+
+<div class="container-fluid py-4 facturacion-page">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1 text-white">Facturación</h2>
+            <div class="text-muted">
+                Alta de factura / presupuesto / comprobante
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-light">
+                Cancelar
+            </button>
+
+            <button class="btn btn-success px-4">
+                Guardar
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-4">
+
+        <!-- CABECERA -->
+        <div class="col-12">
+            <div class="card card-dark shadow-sm border-0">
+                <div class="card-body">
+
+                    <div class="row g-3">
+
+                        <div class="col-md-4">
+                            <label class="form-label">Cliente</label>
+                            <select class="form-select">
+                                <option>Seleccionar cliente...</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label">Comprobante</label>
+                            <select class="form-select">
+                                <option>Presupuesto</option>
+                                <option>Factura A</option>
+                                <option>Factura B</option>
+                                <option>Factura C</option>
+                                <option>Remito</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label">Número</label>
+                            <input class="form-control" value="0001-00000015" readonly />
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label">Fecha</label>
+                            <input type="date" class="form-control" />
+                        </div>
+
+                        <div class="col-md-2 d-flex align-items-end">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="chkAfip" />
+                                <label class="form-check-label" for="chkAfip">
+                                    Enviar a AFIP
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Condición de venta</label>
+                            <select class="form-select">
+                                <option>Contado</option>
+                                <option>Cuenta corriente</option>
+                                <option>Transferencia</option>
+                                <option>Tarjeta</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Observación</label>
+                            <input class="form-control" placeholder="Observación general..." />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Estado</label>
+                            <input class="form-control" value="Borrador" readonly />
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DETALLE -->
+        <div class="col-lg-8">
+            <div class="card card-dark shadow-sm border-0 h-100">
+                <div class="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-white">Detalle</h5>
+
+                    <div class="position-relative" style="max-width: 400px;">
+
+                        <!-- BUSCADOR -->
+                        <input class="form-control form-control-sm"
+                               placeholder="Buscar producto por nombre o código..."
+                               @ref="InputBusquedaProducto"
+                               @bind="BusquedaProducto"
+                               @bind:event="oninput"
+                               @onkeyup="OnKeyUpBusqueda" />
+
+                        <!-- RESULTADOS -->
+                        @if (!string.IsNullOrWhiteSpace(BusquedaProducto))
+                        {
+                            <div class="list-group position-absolute w-100 shadow"
+                                 style="z-index: 2000; top: 100%; left: 0;">
+
+                                @foreach (var p in Productos
+                                                                            .Where(x =>
+                                                                                x.Descripcion.Contains(BusquedaProducto, StringComparison.OrdinalIgnoreCase) ||
+                                                                                (!string.IsNullOrWhiteSpace(x.CodigoProducto) &&
+                                                                                 x.CodigoProducto.Contains(BusquedaProducto)))
+                                                                            .Take(10))
+                                {
+                                    <button type="button"
+                                            class="list-group-item list-group-item-action"
+                                            @onclick="() => SeleccionarProducto(p)">
+                                        <strong>@p.Descripcion</strong>
+                                        <div class="small text-muted">@p.CodigoProducto</div>
+                                    </button>
+                                }
+
+                            </div>
+                        }
+
+                    </div>
+
+                </div>
+
+                <div class="card-body p-0">
+
+                    <div class="table-responsive" style="max-height: 420px;">
+                        <table class="table table-dark table-hover align-middle mb-0">
+                            <thead class="sticky-top">
+                                <tr>
+                                    <th style="width:120px;">Código</th>
+                                    <th>Descripción</th>
+                                    <th style="width:100px;">Cantidad</th>
+                                    <th style="width:120px;">Precio</th>
+                                    <th style="width:120px;">IVA</th>
+                                    <th style="width:140px;">Subtotal</th>
+                                    <th style="width:60px;"></th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                @if (Factura.Detalles.Count == 0)
+                                {
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-4">
+                                            Los nuevos productos se agregarán acá
+                                        </td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var item in Factura.Detalles)
+                                    {
+                                        <tr>
+                                            <td>@item.CodigoProducto</td>
+                                
+                                            <td>@item.Descripcion</td>
+                                
+                                            <td>
+                                                <input class="form-control form-control-sm"
+                                                       type="number"
+                                                       @bind="item.Cantidad"
+                                                       @oninput="Recalcular" />
+                                            </td>
+                                
+                                            <td>
+                                                <input class="form-control form-control-sm"
+                                                       type="number"
+                                                       @bind="item.PrecioUnitario"
+                                                       @oninput="Recalcular" />
+                                            </td>
+                                
+                                            <td>
+                                                <select class="form-select form-select-sm"
+                                                        value="@item.PorcentajeIva"
+                                                        @onchange="(e => OnIvaChange(e, item))">
+                                                    <option value="21">21%</option>
+                                                    <option value="10.5">10.5%</option>
+                                                    <option value="0">0%</option>
+                                                </select>
+                                            </td>
+                                
+                                            <td>
+                                                $@item.Subtotal.ToString("N2")
+                                            </td>
+                                
+                                            <td>
+                                                <button class="btn btn-outline-danger btn-sm"
+                                                        @onclick="() => Eliminar(item)">
+                                                    ×
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- TOTALES -->
+        <div class="col-lg-4">
+            <div class="card card-dark shadow-sm border-0 mb-4">
+                <div class="card-header bg-transparent border-bottom border-secondary">
+                    <h5 class="mb-0 text-white">Totales</h5>
+                </div>
+
+                <div class="card-body">
+
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Subtotal</span>
+                        <span>$21.400,00</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">IVA 21%</span>
+                        <span>$4.494,00</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">IVA 10.5%</span>
+                        <span>$0,00</span>
+                    </div>
+
+                    <hr class="border-secondary" />
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fs-5 fw-bold text-white">TOTAL</span>
+                        <span class="fs-3 fw-bold text-success">$25.894,00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-dark shadow-sm border-0">
+                <div class="card-header bg-transparent border-bottom border-secondary">
+                    <h5 class="mb-0 text-white">Pago</h5>
+                </div>
+
+                <div class="card-body">
+
+                    <div class="mb-3">
+                        <label class="form-label">Forma de pago</label>
+                        <select class="form-select">
+                            <option>Efectivo</option>
+                            <option>Transferencia</option>
+                            <option>Tarjeta Débito</option>
+                            <option>Tarjeta Crédito</option>
+                            <option>Cuenta Corriente</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Monto recibido</label>
+                        <input class="form-control" placeholder="$0,00" />
+                    </div>
+
+                    <div class="alert alert-secondary mb-0">
+                        Vuelto: <strong>$0,00</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@code {
+    [Inject] private IProductoService ProductoService { get; set; } = default!;
+    [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
+
+    private ElementReference InputBusquedaProducto;
+
+    private string BusquedaProducto = string.Empty;
+
+    private FacturaViewModel Factura = new()
+    {
+        Detalles = new List<FacturaDetalleViewModel>(),
+        Pagos = new List<FacturaPagoViewModel>()
+    };
+
+    private void OnIvaChange(ChangeEventArgs e, FacturaDetalleViewModel item)
+    {
+        if (decimal.TryParse(e.Value?.ToString(), out var iva))
+        {
+            item.PorcentajeIva = iva;
+            Recalcular();
+        }
+    }
+
+    private void Eliminar(FacturaDetalleViewModel item)
+    {
+        Factura.Detalles.Remove(item);
+        Recalcular();
+    }
+
+    private void Recalcular()
+    {
+        foreach (var d in Factura.Detalles)
+        {
+            d.Subtotal = d.Cantidad * d.PrecioUnitario;
+        }
+    }
+
+    private void AgregarProducto(ProductoViewModel p)
+    {
+        // opcional: si ya existe, sumar cantidad
+        var existente = Factura.Detalles
+            .FirstOrDefault(x => x.IdProducto == p.IdProducto);
+
+        if (existente != null)
+        {
+            existente.Cantidad += 1;
+        }
+        else
+        {
+            Factura.Detalles.Add(new FacturaDetalleViewModel
+            {
+                IdProducto = p.IdProducto,
+                CodigoProducto = p.CodigoProducto,
+                Descripcion = p.Descripcion,
+                Cantidad = 1,
+                PrecioUnitario = p.PrecioVentaActual ?? 0,
+                PorcentajeIva = 21 // por ahora fijo
+            });
+        }
+
+        Recalcular();
+    }
+
+    private void OnProductoSeleccionado(ProductoViewModel p)
+    {
+        AgregarProducto(p);
+    }
+
+
+    private List<ProductoViewModel> Productos = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Productos = await ProductoService.ObtenerTodosAsync();
+    }
+
+    private void SeleccionarProducto(ProductoViewModel p)
+    {
+        AgregarProducto(p);
+
+        BusquedaProducto = string.Empty;
+    }
+
+    private void OnKeyUpBusqueda(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter")
+            return;
+
+        var busqueda = BusquedaProducto.Trim();
+
+        if (string.IsNullOrWhiteSpace(busqueda))
+            return;
+
+        var producto = Productos.FirstOrDefault(x =>
+            (!string.IsNullOrWhiteSpace(x.CodigoBarra) &&
+             x.CodigoBarra.Equals(busqueda, StringComparison.OrdinalIgnoreCase))
+            ||
+            (!string.IsNullOrWhiteSpace(x.CodigoProducto) &&
+             x.CodigoProducto.Equals(busqueda, StringComparison.OrdinalIgnoreCase))
+        );
+
+        if (producto == null)
+            return;
+
+        AgregarProducto(producto);
+        BusquedaProducto = string.Empty;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("bloquearZoomEnBuscador", InputBusquedaProducto);
+        }
+    }
+}
+
+<style>
+    .list-group {
+        max-height: 250px;
+        overflow-y: auto;
+    }
+</style>
+
+<script>
+    window.bloquearZoomEnBuscador = function (input) {
+        if (!input) return;
+
+        input.addEventListener("keydown", function (e) {
+            if (e.ctrlKey && (
+                e.key === "+" ||
+                e.key === "=" ||
+                e.key === "-" ||
+                e.key === "_" ||
+                e.key === "0"
+            )) {
+                e.preventDefault();
+            }
+        });
+
+        input.addEventListener("wheel", function (e) {
+            if (e.ctrlKey) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    };
+</script>

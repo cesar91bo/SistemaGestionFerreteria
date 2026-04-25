@@ -1,0 +1,71 @@
+﻿.facturacion-page {
+    color: #f5f5f5;
+}
+
+.card-dark {
+    background: linear-gradient(145deg, #1f2430, #252d3d);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 18px;
+}
+
+    .card-dark .card-header {
+        padding: 1rem 1.25rem;
+    }
+
+.facturacion-page .form-control,
+.facturacion-page .form-select {
+    background-color: #141b26;
+    border: 1px solid #374151;
+    color: #fff;
+    border-radius: 12px;
+    min-height: 44px;
+}
+
+    .facturacion-page .form-control:focus,
+    .facturacion-page .form-select:focus {
+        background-color: #141b26;
+        color: #fff;
+        border-color: #f59e0b;
+        box-shadow: 0 0 0 .15rem rgba(245,158,11,.25);
+    }
+
+.facturacion-page .table {
+    --bs-table-bg: transparent;
+    --bs-table-color: #f5f5f5;
+    margin-bottom: 0;
+}
+
+    .facturacion-page .table thead th {
+        background-color: #2b3445;
+        border-bottom: 1px solid #404b60;
+        color: #fff;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+
+    .facturacion-page .table td,
+    .facturacion-page .table th {
+        border-color: #384355;
+        vertical-align: middle;
+    }
+
+.facturacion-page .btn-primary {
+    background-color: #d97706;
+    border-color: #d97706;
+}
+
+    .facturacion-page .btn-primary:hover {
+        background-color: #b45309;
+        border-color: #b45309;
+    }
+
+.facturacion-page .btn-success {
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.facturacion-page .btn-outline-light,
+.facturacion-page .btn-outline-danger {
+    border-radius: 12px;
+}
