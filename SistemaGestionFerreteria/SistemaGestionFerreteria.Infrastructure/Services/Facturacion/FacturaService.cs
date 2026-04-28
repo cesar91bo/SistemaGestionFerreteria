@@ -78,6 +78,7 @@ namespace SistemaGestionFerreteria.Infrastructure.Services.Facturacion
 
             context.Facturas.Add(factura);
 
+
             await context.SaveChangesAsync();
 
             return factura.IdFactura;

@@ -69,3 +69,8 @@
 .facturacion-page .btn-outline-danger {
     border-radius: 12px;
 }
+
+.list-group {
+    max-height: 250px;
+    overflow-y: auto;
+}

@@ -1,8 +1,10 @@
 ﻿@page "/facturacion"
+@using SistemaGestionFerreteria.Application.Features.Clientes.Models
 @using SistemaGestionFerreteria.Application.Features.Facturacion.Models
 @using SistemaGestionFerreteria.Application.Features.Productos.Models
 @using SistemaGestionFerreteria.Application.Interfaces
 @using Microsoft.JSInterop
+@using SistemaGestionFerreteria.Infrastructure.Services.Clientes
 @rendermode InteractiveServer
 
 <div class="container-fluid py-4 facturacion-page">
@@ -20,7 +22,9 @@
                 Cancelar
             </button>
 
-            <button class="btn btn-success px-4">
+            <button class="btn btn-success px-4"
+                    disabled="@(!PuedeGuardar)"
+                    @onclick="Guardar">
                 Guardar
             </button>
         </div>
@@ -37,8 +41,18 @@
 
                         <div class="col-md-4">
                             <label class="form-label">Cliente</label>
-                            <select class="form-select">
-                                <option>Seleccionar cliente...</option>
+                            <select class="form-select"
+                                    @bind="Factura.IdCliente">
+
+                                <option value="">Seleccionar cliente...</option>
+
+                                @foreach (var c in Clientes)
+                                {
+                                    <option value="@c.IdCliente">
+                                        @c.Nombre
+                                    </option>
+                                }
+
                             </select>
                         </div>
 
@@ -105,6 +119,10 @@
 
                     <div class="position-relative" style="max-width: 400px;">
 
+                          
+                        <small class="text-muted mb-1">
+                            Buscar / escanear producto
+                        </small>
                         <!-- BUSCADOR -->
                         <input class="form-control form-control-sm"
                                placeholder="Buscar producto por nombre o código..."
@@ -120,11 +138,11 @@
                                  style="z-index: 2000; top: 100%; left: 0;">
 
                                 @foreach (var p in Productos
-                                                                            .Where(x =>
-                                                                                x.Descripcion.Contains(BusquedaProducto, StringComparison.OrdinalIgnoreCase) ||
-                                                                                (!string.IsNullOrWhiteSpace(x.CodigoProducto) &&
-                                                                                 x.CodigoProducto.Contains(BusquedaProducto)))
-                                                                            .Take(10))
+                                    .Where(x =>
+                                        x.Descripcion.Contains(BusquedaProducto, StringComparison.OrdinalIgnoreCase) ||
+                                        (!string.IsNullOrWhiteSpace(x.CodigoProducto) &&
+                                         x.CodigoProducto.Contains(BusquedaProducto)))
+                                    .Take(10))
                                 {
                                     <button type="button"
                                             class="list-group-item list-group-item-action"
@@ -150,9 +168,9 @@
                                     <th style="width:120px;">Código</th>
                                     <th>Descripción</th>
                                     <th style="width:100px;">Cantidad</th>
-                                    <th style="width:120px;">Precio</th>
+                                    <th style="width:120px;">Precio c/IVA</th>
                                     <th style="width:120px;">IVA</th>
-                                    <th style="width:140px;">Subtotal</th>
+                                    <th style="width:140px;">Subtotal c/IVA</th>
                                     <th style="width:60px;"></th>
                                 </tr>
                             </thead>
@@ -180,14 +198,16 @@
                                                 <input class="form-control form-control-sm"
                                                        type="number"
                                                        @bind="item.Cantidad"
-                                                       @oninput="Recalcular" />
+                                                       @bind:event="oninput"
+                                                       @bind:after="Recalcular" />
                                             </td>
                                 
                                             <td>
                                                 <input class="form-control form-control-sm"
                                                        type="number"
-                                                       @bind="item.PrecioUnitario"
-                                                       @oninput="Recalcular" />
+                                                      @bind="item.PrecioUnitario"
+                                                       @bind:event="oninput"
+                                                       @bind:after="Recalcular" />
                                             </td>
                                 
                                             <td>
@@ -233,25 +253,28 @@
 
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">Subtotal</span>
-                        <span>$21.400,00</span>
+                        <span>$@Factura.Subtotal.ToString("N2")</span>
                     </div>
-
+                
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">IVA 21%</span>
-                        <span>$4.494,00</span>
+                        <span>$@Factura.TotalIva21.ToString("N2")</span>
                     </div>
-
+                
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">IVA 10.5%</span>
-                        <span>$0,00</span>
+                        <span>$@Factura.TotalIva105.ToString("N2")</span>
                     </div>
-
+                
                     <hr class="border-secondary" />
-
+                
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="fs-5 fw-bold text-white">TOTAL</span>
-                        <span class="fs-3 fw-bold text-success">$25.894,00</span>
+                        <span class="fs-3 fw-bold text-success">
+                            $@Factura.Total.ToString("N2")
+                        </span>
                     </div>
+                
                 </div>
             </div>
 
@@ -291,10 +314,18 @@
 @code {
     [Inject] private IProductoService ProductoService { get; set; } = default!;
     [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
+    [Inject] private IFacturaService FacturaService { get; set; } = default!;
+    [Inject] private IClienteService ClienteService { get; set; } = default!;
+
+    private List<ClienteViewModel> Clientes = new();
 
     private ElementReference InputBusquedaProducto;
 
     private string BusquedaProducto = string.Empty;
+
+    private bool PuedeGuardar => Factura.Detalles.Any() 
+        && Factura.Total > 0 
+        && Factura.IdCliente != null;
 
     private FacturaViewModel Factura = new()
     {
@@ -317,12 +348,33 @@
         Recalcular();
     }
 
-    private void Recalcular()
-    {
+   private void Recalcular()
+   {
+        decimal subtotalConIva = 0;
+        decimal iva21 = 0;
+        decimal iva105 = 0;
+
         foreach (var d in Factura.Detalles)
         {
+            // El precio que se ve/carga es precio final con IVA
             d.Subtotal = d.Cantidad * d.PrecioUnitario;
+
+            if (d.PorcentajeIva == 21)
+            {
+                iva21 += d.Subtotal - (d.Subtotal / 1.21m);
+            }
+            else if (d.PorcentajeIva == 10.5m)
+            {
+                iva105 += d.Subtotal - (d.Subtotal / 1.105m);
+            }
+
+            subtotalConIva += d.Subtotal;
         }
+
+        Factura.Total = subtotalConIva;
+        Factura.TotalIva21 = iva21;
+        Factura.TotalIva105 = iva105;
+        Factura.Subtotal = subtotalConIva - iva21 - iva105;
     }
 
     private void AgregarProducto(ProductoViewModel p)
@@ -362,6 +414,9 @@
     protected override async Task OnInitializedAsync()
     {
         Productos = await ProductoService.ObtenerTodosAsync();
+        Clientes = await ClienteService.ObtenerTodosAsync();
+        // cliente por defecto
+        Factura.IdCliente = 1;
     }
 
     private void SeleccionarProducto(ProductoViewModel p)
@@ -396,42 +451,42 @@
         BusquedaProducto = string.Empty;
     }
 
+    
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await JSRuntime.InvokeVoidAsync("bloquearZoomEnBuscador", InputBusquedaProducto);
+            await JSRuntime.InvokeVoidAsync("bloquearZoomGlobal");
+            await JSRuntime.InvokeVoidAsync("focusInput", InputBusquedaProducto);
         }
     }
-}
 
-<style>
-    .list-group {
-        max-height: 250px;
-        overflow-y: auto;
+    private async Task Guardar()
+    {
+        if (!Factura.Detalles.Any())
+            return;
+
+        try
+        {
+            Factura.NumeroComprobante = await FacturaService.ObtenerProximoNumeroAsync(
+                Factura.TipoComprobante,
+                Factura.PuntoVenta
+                );
+            await FacturaService.CrearAsync(Factura);
+
+            System.Diagnostics.Debug.WriteLine("Factura guardada correctamente");
+
+            //  limpiar pantalla
+            Factura = new FacturaViewModel
+            {
+                Detalles = new List<FacturaDetalleViewModel>(),
+                Pagos = new List<FacturaPagoViewModel>()
+            };
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error al guardar: {ex.Message}");
+        }
     }
-</style>
 
-<script>
-    window.bloquearZoomEnBuscador = function (input) {
-        if (!input) return;
-
-        input.addEventListener("keydown", function (e) {
-            if (e.ctrlKey && (
-                e.key === "+" ||
-                e.key === "=" ||
-                e.key === "-" ||
-                e.key === "_" ||
-                e.key === "0"
-            )) {
-                e.preventDefault();
-            }
-        });
-
-        input.addEventListener("wheel", function (e) {
-            if (e.ctrlKey) {
-                e.preventDefault();
-            }
-        }, { passive: false });
-    };
-</script>
+}
