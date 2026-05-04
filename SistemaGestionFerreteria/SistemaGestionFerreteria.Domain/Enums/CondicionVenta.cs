@@ -1,16 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.ComponentModel.DataAnnotations;
 
-namespace SistemaGestionFerreteria.Domain.Enums
+public enum CondicionVenta
 {
-    public enum CondicionVenta
-    {
-        Contado = 0,
-        CuentaCorriente = 1,
-        Transferencia = 2,
-        Tarjeta = 3
-    }
+    [Display(Name = "Contado")]
+    Contado = 0,
+
+    [Display(Name = "Cuenta Corriente")]
+    CuentaCorriente = 1,
+
+    [Display(Name = "Transferencia")]
+    Transferencia = 2,
+
+    [Display(Name = "Tarjeta")]
+    Tarjeta = 3
 }

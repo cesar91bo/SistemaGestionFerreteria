@@ -8,7 +8,7 @@ namespace SistemaGestionFerreteria.Domain.Entities
         public int IdFactura { get; set; }
         public Factura Factura { get; set; } = null!;
 
-        public int IdProducto { get; set; }
+        public int? IdProducto { get; set; }
         public Producto Producto { get; set; } = null!;
 
         public string? CodigoProducto { get; set; }

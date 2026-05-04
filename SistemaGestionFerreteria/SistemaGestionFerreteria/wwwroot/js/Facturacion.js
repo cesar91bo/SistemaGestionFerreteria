@@ -27,3 +27,19 @@ window.focusInput = function (input) {
         input.focus();
     }
 };
+
+window.focusInputGlobal = function (input) {
+
+    if (!input) return;
+
+    // foco inicial
+    input.focus();
+
+    // recuperar foco si se pierde
+    document.addEventListener("click", function () {
+        setTimeout(() => {
+            input.focus();
+        }, 0);
+    });
+
+};

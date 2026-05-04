@@ -4,7 +4,9 @@
 @using SistemaGestionFerreteria.Application.Features.Productos.Models
 @using SistemaGestionFerreteria.Application.Interfaces
 @using Microsoft.JSInterop
+@using SistemaGestionFerreteria.Domain.Enums
 @using SistemaGestionFerreteria.Infrastructure.Services.Clientes
+@using SistemaGestionFerreteria.Application.Helpers
 @rendermode InteractiveServer
 
 <div class="container-fluid py-4 facturacion-page">
@@ -58,23 +60,28 @@
 
                         <div class="col-md-2">
                             <label class="form-label">Comprobante</label>
-                            <select class="form-select">
-                                <option>Presupuesto</option>
-                                <option>Factura A</option>
-                                <option>Factura B</option>
-                                <option>Factura C</option>
-                                <option>Remito</option>
+                            <select class="form-select" @bind="Factura.TipoComprobante">
+                                @foreach (TipoComprobante item in Enum.GetValues(typeof(TipoComprobante)))
+                                {
+                                    <option value="@item">
+                                        @item.GetDisplayName()
+                                    </option>
+                                }
                             </select>
                         </div>
 
                         <div class="col-md-2">
                             <label class="form-label">Número</label>
-                            <input class="form-control" value="0001-00000015" readonly />
+                            <input class="form-control"
+                                   value="@(Factura.NumeroComprobante == 0
+                                                                                                                                                                            ? "Se asigna al guardar"
+                                                                                                                                                                            : $"{Factura.PuntoVenta:D4}-{Factura.NumeroComprobante:D8}")"
+                                   readonly />
                         </div>
 
                         <div class="col-md-2">
                             <label class="form-label">Fecha</label>
-                            <input type="date" class="form-control" />
+                            <input type="date" class="form-control" @bind="Factura.Fecha" />
                         </div>
 
                         <div class="col-md-2 d-flex align-items-end">
@@ -88,11 +95,14 @@
 
                         <div class="col-md-4">
                             <label class="form-label">Condición de venta</label>
-                            <select class="form-select">
-                                <option>Contado</option>
-                                <option>Cuenta corriente</option>
-                                <option>Transferencia</option>
-                                <option>Tarjeta</option>
+
+                            <select class="form-select" @bind="Factura.CondicionVenta">
+                                @foreach (CondicionVenta item in Enum.GetValues(typeof(CondicionVenta)))
+                                {
+                                    <option value="@item">
+                                        @item.GetDisplayName()
+                                    </option>
+                                }
                             </select>
                         </div>
 
@@ -117,36 +127,48 @@
                 <div class="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 text-white">Detalle</h5>
 
-                    <div class="position-relative" style="max-width: 400px;">
+                    <div style="max-width: 500px;">
 
-                          
-                        <small class="text-muted mb-1">
+                        <small class="text-muted d-block mb-1">
                             Buscar / escanear producto
                         </small>
-                        <!-- BUSCADOR -->
-                        <input class="form-control form-control-sm"
-                               placeholder="Buscar producto por nombre o código..."
-                               @ref="InputBusquedaProducto"
-                               @bind="BusquedaProducto"
-                               @bind:event="oninput"
-                               @onkeyup="OnKeyUpBusqueda" />
 
-                        <!-- RESULTADOS -->
+                        <div class="d-flex gap-2">
+
+                            <input class="form-control form-control-sm"
+                                   placeholder="Buscar producto por nombre o código..."
+                                   @ref="InputBusquedaProducto"
+                                   @bind="BusquedaProducto"
+                                   @bind:event="oninput"
+                                   @onkeyup="OnKeyUpBusqueda" />
+
+                            <button class="btn btn-outline-light btn-sm"
+                                    @onclick="AgregarManual">
+                                + Manual
+                            </button>
+
+                        </div>
+
                         @if (!string.IsNullOrWhiteSpace(BusquedaProducto))
                         {
-                            <div class="list-group position-absolute w-100 shadow"
-                                 style="z-index: 2000; top: 100%; left: 0;">
+                            <div class="list-group position-absolute shadow"
+                                 style="z-index: 2000; width: 100%;">
 
-                                @foreach (var p in Productos
-                                    .Where(x =>
-                                        x.Descripcion.Contains(BusquedaProducto, StringComparison.OrdinalIgnoreCase) ||
-                                        (!string.IsNullOrWhiteSpace(x.CodigoProducto) &&
-                                         x.CodigoProducto.Contains(BusquedaProducto)))
-                                    .Take(10))
+                                @{
+                                    var resultados = Productos
+                                        .Where(x =>
+                                            x.Descripcion.Contains(BusquedaProducto, StringComparison.OrdinalIgnoreCase) ||
+                                            (!string.IsNullOrWhiteSpace(x.CodigoProducto) &&
+                                             x.CodigoProducto.Contains(BusquedaProducto)))
+                                        .Take(10)
+                                        .ToList();
+                                }
+
+                                @foreach (var p in resultados)
                                 {
                                     <button type="button"
                                             class="list-group-item list-group-item-action"
-                                            @onclick="() => SeleccionarProducto(p)">
+                                            @onclick="async() => await SeleccionarProducto(p)">
                                         <strong>@p.Descripcion</strong>
                                         <div class="small text-muted">@p.CodigoProducto</div>
                                     </button>
@@ -192,7 +214,18 @@
                                         <tr>
                                             <td>@item.CodigoProducto</td>
                                 
-                                            <td>@item.Descripcion</td>
+                                            <td>
+                                                @if (item.IdProducto == null)
+                                                {
+                                                    <input class="form-control form-control-sm"
+                                                           @bind="item.Descripcion"
+                                                           @bind:event="oninput" />
+                                                }
+                                                else
+                                                {
+                                                    @item.Descripcion
+                                                }
+                                            </td>
                                 
                                             <td>
                                                 <input class="form-control form-control-sm"
@@ -205,7 +238,7 @@
                                             <td>
                                                 <input class="form-control form-control-sm"
                                                        type="number"
-                                                      @bind="item.PrecioUnitario"
+                                                       @bind="item.PrecioUnitario"
                                                        @bind:event="oninput"
                                                        @bind:after="Recalcular" />
                                             </td>
@@ -287,23 +320,87 @@
 
                     <div class="mb-3">
                         <label class="form-label">Forma de pago</label>
-                        <select class="form-select">
-                            <option>Efectivo</option>
-                            <option>Transferencia</option>
-                            <option>Tarjeta Débito</option>
-                            <option>Tarjeta Crédito</option>
-                            <option>Cuenta Corriente</option>
+
+                        <select class="form-select"
+                                @bind="FormaPagoSeleccionada"
+                                @bind:after="OnFormaPagoChange">
+                            @foreach (FormaPago item in Enum.GetValues(typeof(FormaPago)))
+                            {
+                                <option value="@item">
+                                    @item.GetDisplayName()
+                                </option>
+                            }
                         </select>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Monto recibido</label>
-                        <input class="form-control" placeholder="$0,00" />
+                        <input class="form-control"
+                               type="number"
+                               step="0.01"
+                               @bind="MontoRecibido"
+                               @bind:event="oninput" />
                     </div>
 
                     <div class="alert alert-secondary mb-0">
-                        Vuelto: <strong>$0,00</strong>
+                        Vuelto:
+                        <strong class="@(Vuelto < 0 ? "text-danger" : "text-success")">
+                            $@Vuelto.ToString("N2")
+                        </strong>
                     </div>
+
+                    @if (Factura.Total > 0)
+                    {
+                        <div class="mt-3 p-3 rounded"
+                             style="background-color:#1f2937; border:1px solid #374151;">
+
+                            <div class="mb-2 text-white fw-bold">
+                                Resumen de pago
+                            </div>
+
+                            <div class="d-flex justify-content-between text-light">
+                                <span>Forma de pago</span>
+                                <strong>@FormaPagoSeleccionada.GetDisplayName()</strong>
+                            </div>
+
+                            <div class="d-flex justify-content-between text-light">
+                                <span>Total</span>
+                                <strong>$@Factura.Total.ToString("N2")</strong>
+                            </div>
+
+                            <div class="d-flex justify-content-between text-light">
+                                <span>Recibido</span>
+                                <strong>$@MontoRecibido.ToString("N2")</strong>
+                            </div>
+
+                            <hr style="border-color:#374151;" />
+
+                            <div class="d-flex justify-content-between align-items-center">
+
+                                <span class="fw-bold text-white">Resultado</span>
+
+                                @if (Vuelto < 0)
+                                {
+                                    <span class="text-danger fw-bold fs-5">
+                                        Falta $@Math.Abs(Vuelto).ToString("N2")
+                                    </span>
+                                }
+                                else if (Vuelto > 0)
+                                {
+                                    <span class="text-success fw-bold fs-5">
+                                        Vuelto $@Vuelto.ToString("N2")
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="text-info fw-bold fs-5">
+                                        Pago exacto
+                                    </span>
+                                }
+                            </div>
+
+                        </div>
+                    }
                 </div>
             </div>
         </div>
@@ -312,26 +409,78 @@
 </div>
 
 @code {
+
+    #region 🔹 Inyecciones
+
     [Inject] private IProductoService ProductoService { get; set; } = default!;
     [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
     [Inject] private IFacturaService FacturaService { get; set; } = default!;
     [Inject] private IClienteService ClienteService { get; set; } = default!;
 
+    #endregion
+
+
+    #region 🔹 Propiedades / Estado
+
     private List<ClienteViewModel> Clientes = new();
+    private List<ProductoViewModel> Productos = new();
 
     private ElementReference InputBusquedaProducto;
 
     private string BusquedaProducto = string.Empty;
 
-    private bool PuedeGuardar => Factura.Detalles.Any() 
-        && Factura.Total > 0 
-        && Factura.IdCliente != null;
+    private FormaPago FormaPagoSeleccionada = FormaPago.Efectivo;
+
+    private decimal MontoRecibido = 0;
+
+    private decimal Vuelto => MontoRecibido - Factura.Total;
+
+    private string UltimaBusquedaProcesada = "";
+
+    private bool PuedeGuardar =>
+    Factura.Detalles.Any()
+    && Factura.IdCliente != null
+    && Factura.Detalles.All(d =>
+        !string.IsNullOrWhiteSpace(d.Descripcion)
+        && d.Cantidad > 0
+        && d.PrecioUnitario > 0)
+    && MontoRecibido >= Factura.Total;
 
     private FacturaViewModel Factura = new()
     {
+        IdCliente = 1,
+        Fecha = DateTime.Today,
+        TipoComprobante = TipoComprobante.FacturaB,
         Detalles = new List<FacturaDetalleViewModel>(),
         Pagos = new List<FacturaPagoViewModel>()
     };
+
+    #endregion
+
+
+    #region 🔹 Lifecycle
+
+    protected override async Task OnInitializedAsync()
+    {
+        Productos = await ProductoService.ObtenerTodosAsync();
+        Clientes = await ClienteService.ObtenerTodosAsync();
+
+        Factura.IdCliente = 1;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("bloquearZoomGlobal");
+            await JSRuntime.InvokeVoidAsync("focusInput", InputBusquedaProducto);
+        }
+    }
+
+    #endregion
+
+
+    #region 🔹 Eventos UI
 
     private void OnIvaChange(ChangeEventArgs e, FacturaDetalleViewModel item)
     {
@@ -342,31 +491,56 @@
         }
     }
 
-    private void Eliminar(FacturaDetalleViewModel item)
+    private void OnFormaPagoChange()
     {
-        Factura.Detalles.Remove(item);
-        Recalcular();
+        MontoRecibido = Factura.Total;
     }
 
-   private void Recalcular()
-   {
+    private async Task OnKeyUpBusqueda(KeyboardEventArgs e)
+    {
+        var busqueda = BusquedaProducto.Trim();
+
+        if (string.IsNullOrWhiteSpace(busqueda))
+            return;
+
+        var resultados = Productos.Where(x =>
+            x.Descripcion.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ||
+            (!string.IsNullOrWhiteSpace(x.CodigoProducto) &&
+             x.CodigoProducto.Contains(busqueda)))
+            .ToList();
+
+        if (e.Key == "Enter")
+        {
+            var producto = resultados.FirstOrDefault();
+
+            if (producto != null)
+            {
+                await AgregarProducto(producto);
+                BusquedaProducto = string.Empty;
+            }
+
+            return;
+        }
+    }
+    #endregion
+
+
+    #region 🔹 Lógica de Facturación
+
+    private void Recalcular()
+    {
         decimal subtotalConIva = 0;
         decimal iva21 = 0;
         decimal iva105 = 0;
 
         foreach (var d in Factura.Detalles)
         {
-            // El precio que se ve/carga es precio final con IVA
             d.Subtotal = d.Cantidad * d.PrecioUnitario;
 
             if (d.PorcentajeIva == 21)
-            {
                 iva21 += d.Subtotal - (d.Subtotal / 1.21m);
-            }
             else if (d.PorcentajeIva == 10.5m)
-            {
                 iva105 += d.Subtotal - (d.Subtotal / 1.105m);
-            }
 
             subtotalConIva += d.Subtotal;
         }
@@ -375,11 +549,15 @@
         Factura.TotalIva21 = iva21;
         Factura.TotalIva105 = iva105;
         Factura.Subtotal = subtotalConIva - iva21 - iva105;
+
+        if (MontoRecibido == 0 || MontoRecibido < Factura.Total)
+        {
+            MontoRecibido = Factura.Total;
+        }
     }
 
-    private void AgregarProducto(ProductoViewModel p)
+    private async Task AgregarProducto(ProductoViewModel p)
     {
-        // opcional: si ya existe, sumar cantidad
         var existente = Factura.Detalles
             .FirstOrDefault(x => x.IdProducto == p.IdProducto);
 
@@ -396,70 +574,32 @@
                 Descripcion = p.Descripcion,
                 Cantidad = 1,
                 PrecioUnitario = p.PrecioVentaActual ?? 0,
-                PorcentajeIva = 21 // por ahora fijo
+                PorcentajeIva = 21
             });
         }
 
         Recalcular();
+
+        await JSRuntime.InvokeVoidAsync("focusInput", InputBusquedaProducto);
     }
 
-    private void OnProductoSeleccionado(ProductoViewModel p)
+    private void Eliminar(FacturaDetalleViewModel item)
     {
-        AgregarProducto(p);
+        Factura.Detalles.Remove(item);
+        Recalcular();
     }
 
-
-    private List<ProductoViewModel> Productos = new();
-
-    protected override async Task OnInitializedAsync()
+    private async Task SeleccionarProducto(ProductoViewModel p)
     {
-        Productos = await ProductoService.ObtenerTodosAsync();
-        Clientes = await ClienteService.ObtenerTodosAsync();
-        // cliente por defecto
-        Factura.IdCliente = 1;
-    }
-
-    private void SeleccionarProducto(ProductoViewModel p)
-    {
-        AgregarProducto(p);
-
+        await AgregarProducto(p);
         BusquedaProducto = string.Empty;
     }
 
-    private void OnKeyUpBusqueda(KeyboardEventArgs e)
-    {
-        if (e.Key != "Enter")
-            return;
 
-        var busqueda = BusquedaProducto.Trim();
+    #endregion
 
-        if (string.IsNullOrWhiteSpace(busqueda))
-            return;
 
-        var producto = Productos.FirstOrDefault(x =>
-            (!string.IsNullOrWhiteSpace(x.CodigoBarra) &&
-             x.CodigoBarra.Equals(busqueda, StringComparison.OrdinalIgnoreCase))
-            ||
-            (!string.IsNullOrWhiteSpace(x.CodigoProducto) &&
-             x.CodigoProducto.Equals(busqueda, StringComparison.OrdinalIgnoreCase))
-        );
-
-        if (producto == null)
-            return;
-
-        AgregarProducto(producto);
-        BusquedaProducto = string.Empty;
-    }
-
-    
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await JSRuntime.InvokeVoidAsync("bloquearZoomGlobal");
-            await JSRuntime.InvokeVoidAsync("focusInput", InputBusquedaProducto);
-        }
-    }
+    #region 🔹 Acciones
 
     private async Task Guardar()
     {
@@ -468,20 +608,30 @@
 
         try
         {
-            Factura.NumeroComprobante = await FacturaService.ObtenerProximoNumeroAsync(
-                Factura.TipoComprobante,
-                Factura.PuntoVenta
-                );
+            Factura.Pagos.Clear();
+
+            Factura.Pagos.Add(new FacturaPagoViewModel
+            {
+                FormaPago = FormaPagoSeleccionada,
+                Monto = Factura.Total
+            });
+
             await FacturaService.CrearAsync(Factura);
 
             System.Diagnostics.Debug.WriteLine("Factura guardada correctamente");
 
-            //  limpiar pantalla
             Factura = new FacturaViewModel
             {
+                IdCliente = 1,
+                Fecha = DateTime.Today,
+                TipoComprobante = TipoComprobante.FacturaB,
                 Detalles = new List<FacturaDetalleViewModel>(),
                 Pagos = new List<FacturaPagoViewModel>()
             };
+
+            FormaPagoSeleccionada = FormaPago.Efectivo;
+            MontoRecibido = 0;
+            BusquedaProducto = string.Empty;
         }
         catch (Exception ex)
         {
@@ -489,4 +639,19 @@
         }
     }
 
+    private void AgregarManual()
+    {
+        Factura.Detalles.Add(new FacturaDetalleViewModel
+        {
+            IdProducto = null, 
+            CodigoProducto = "MANUAL",
+            Descripcion = "Nuevo item",
+            Cantidad = 1,
+            PrecioUnitario = 1,
+            PorcentajeIva = 21
+        });
+
+        Recalcular();
+    }
+    #endregion
 }

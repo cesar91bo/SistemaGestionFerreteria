@@ -17,6 +17,8 @@ namespace SistemaGestionFerreteria.Application.Features.Facturacion.Models
 
         public CondicionVenta CondicionVenta { get; set; }
 
+        public DateTime Fecha { get; set; } = DateTime.Today;
+
         public string? Observacion { get; set; }
 
         public decimal Subtotal { get; set; }
