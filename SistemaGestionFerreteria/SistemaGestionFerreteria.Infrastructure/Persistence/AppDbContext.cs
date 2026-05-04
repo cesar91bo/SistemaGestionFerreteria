@@ -365,6 +365,7 @@ namespace SistemaGestionFerreteria.Infrastructure.Persistence
                 entity.HasOne(x => x.Producto)
                     .WithMany(x => x.FacturaDetalles)
                     .HasForeignKey(x => x.IdProducto)
+                    .IsRequired(false)
                     .OnDelete(DeleteBehavior.Restrict);
             });
 

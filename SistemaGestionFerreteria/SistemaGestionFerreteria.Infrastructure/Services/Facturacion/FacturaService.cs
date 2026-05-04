@@ -35,53 +35,72 @@ namespace SistemaGestionFerreteria.Infrastructure.Services.Facturacion
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
 
-            var factura = new Factura
+            using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
             {
-                IdCliente = model.IdCliente ?? 0,
-                TipoComprobante = model.TipoComprobante,
-                PuntoVenta = model.PuntoVenta,
-                NumeroComprobante = model.NumeroComprobante,
-                Fecha = DateTime.Now,
-                Estado = EstadoFactura.Emitida,
-                CondicionVenta = model.CondicionVenta,
-                Observacion = model.Observacion,
+                //obtener número DENTRO de la transacción
+                var ultimoNumero = await context.Facturas
+                    .Where(x => x.TipoComprobante == model.TipoComprobante
+                             && x.PuntoVenta == model.PuntoVenta)
+                    .Select(x => (int?)x.NumeroComprobante)
+                    .MaxAsync();
 
-                Subtotal = model.Subtotal,
-                TotalIva21 = model.TotalIva21,
-                TotalIva105 = model.TotalIva105,
-                TotalIva27 = model.TotalIva27,
-                TotalExento = model.TotalExento,
-                Total = model.Total,
+                var nuevoNumero = (ultimoNumero ?? 0) + 1;
 
-                EnviadaAfip = false,
-                Activo = true,
-
-                Detalles = model.Detalles.Select(x => new FacturaDetalle
+                var factura = new Factura
                 {
-                    IdProducto = x.IdProducto ?? 0,
-                    CodigoProducto = x.CodigoProducto,
-                    Descripcion = x.Descripcion,
-                    Cantidad = x.Cantidad,
-                    PrecioUnitario = x.PrecioUnitario,
-                    PorcentajeIva = x.PorcentajeIva,
-                    ImporteIva = x.ImporteIva,
-                    Subtotal = x.Subtotal
-                }).ToList(),
+                    IdCliente = model.IdCliente ?? 0,
+                    TipoComprobante = model.TipoComprobante,
+                    PuntoVenta = model.PuntoVenta,
+                    NumeroComprobante = nuevoNumero,
+                    Fecha = DateTime.Now,
+                    Estado = EstadoFactura.Emitida,
+                    CondicionVenta = model.CondicionVenta,
+                    Observacion = model.Observacion,
 
-                Pagos = model.Pagos.Select(x => new FacturaPago
-                {
-                    FormaPago = x.FormaPago,
-                    Monto = x.Monto,
-                    Referencia = x.Referencia
-                }).ToList()
-            };
+                    Subtotal = model.Subtotal,
+                    TotalIva21 = model.TotalIva21,
+                    TotalIva105 = model.TotalIva105,
+                    TotalIva27 = model.TotalIva27,
+                    TotalExento = model.TotalExento,
+                    Total = model.Total,
 
-            context.Facturas.Add(factura);
+                    EnviadaAfip = false,
+                    Activo = true,
 
+                    Detalles = model.Detalles.Select(x => new FacturaDetalle
+                    {
+                        IdProducto = x.IdProducto,
+                        CodigoProducto = x.CodigoProducto,
+                        Descripcion = x.Descripcion,
+                        Cantidad = x.Cantidad,
+                        PrecioUnitario = x.PrecioUnitario,
+                        PorcentajeIva = x.PorcentajeIva,
+                        ImporteIva = x.ImporteIva,
+                        Subtotal = x.Subtotal
+                    }).ToList(),
 
-            await context.SaveChangesAsync();
+                    Pagos = model.Pagos.Select(x => new FacturaPago
+                    {
+                        FormaPago = x.FormaPago,
+                        Monto = x.Monto,
+                        Referencia = x.Referencia
+                    }).ToList()
+                };
 
-            return factura.IdFactura;
+                context.Facturas.Add(factura);
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return factura.IdFactura;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString()); // 👈 ver error real
+                throw;
+            }
         }
 
         public async Task<List<FacturaListadoViewModel>> ObtenerTodasAsync()
