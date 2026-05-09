@@ -1,0 +1,86 @@
+﻿@page "/facturacion/listado"
+@using SistemaGestionFerreteria.Application.Features.Facturacion.Models
+@using SistemaGestionFerreteria.Application.Interfaces
+@using Microsoft.JSInterop
+@inject IFacturaService FacturaService
+@rendermode InteractiveServer
+
+<h3 class="text-white mb-4">Comprobantes</h3>
+
+<div class="card card-dark border-0 shadow-sm">
+    <div class="card-body p-0">
+
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Tipo</th>
+                        <th>Total</th>
+                        <th style="width:80px;"></th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    @if (Facturas.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                No hay comprobantes cargados
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var f in Facturas)
+                        {
+                            <tr>
+                                <td>
+                                    @($"{f.PuntoVenta:D4}-{f.NumeroComprobante:D8}")
+                                </td>
+
+                                <td>
+                                    @f.Fecha.ToString("dd/MM/yyyy")
+                                </td>
+
+                                <td>
+                                    @f.Cliente
+                                </td>
+
+                                <td>
+                                    @f.TipoComprobante
+                                </td>
+
+                                <td>
+                                    $@f.Total.ToString("N2")
+                                </td>
+
+                                <td>
+                                    <button class="btn btn-outline-light btn-sm">
+                                        Ver
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
+
+@code {
+
+    private List<FacturaListadoViewModel> Facturas = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Facturas = await FacturaService.ObtenerTodasAsync();
+    }
+
+}

@@ -29,6 +29,12 @@
                     @onclick="Guardar">
                 Guardar
             </button>
+
+            <button class="btn btn-outline-info"
+                    disabled="@(!Factura.Detalles.Any())"
+                    @onclick="ImprimirTicket">
+                Ticket
+            </button>
         </div>
     </div>
 
@@ -639,6 +645,212 @@
         }
     }
 
+    private async Task ImprimirTicket()
+    {
+        var cliente = Clientes
+            .FirstOrDefault(x => x.IdCliente == Factura.IdCliente);
+
+        var nombreCliente = cliente?.Nombre ?? "Consumidor Final";
+
+        var detalleHtml = string.Join("", Factura.Detalles.Select(x =>
+            $@"
+        <tr>
+
+            <td style='width:45%; word-break:break-word;'>
+                {x.Descripcion}
+            </td>
+
+            <td style='width:20%; text-align:right;'>
+                x{x.Cantidad}
+            </td>
+
+            <td style='width:35%; text-align:right; white-space:nowrap;'>
+                ${x.Subtotal:N2}
+            </td>
+
+        </tr>"
+        ));
+
+        var html = $@"
+    <html>
+
+    <head>
+
+        <title>Ticket</title>
+
+        <style>
+
+            * {{
+                box-sizing: border-box;
+            }}
+
+            html, body {{
+                margin: 0;
+                padding: 0;
+                width: 72mm;
+                max-width: 72mm;
+                overflow-x: hidden;
+            }}
+
+            body {{
+    font-family: Consolas, monospace;
+    color: black;
+    font-size: 11px;
+
+    padding-top: 2mm;
+    padding-right: 2mm;
+    padding-bottom: 2mm;
+    padding-left: 5mm;
+}}
+
+            .center {{
+                text-align: center;
+            }}
+
+            .line {{
+                border-top: 1px dashed black;
+                margin: 6px 0;
+            }}
+
+            table {{
+                width: 100%;
+                border-collapse: collapse;
+                table-layout: fixed;
+            }}
+
+            td {{
+                padding: 2px 0;
+                vertical-align: top;
+            }}
+
+            .right {{
+                text-align: right;
+            }}
+
+            .total {{
+                font-size: 20px;
+                font-weight: bold;
+            }}
+
+            .nowrap {{
+                white-space: nowrap;
+            }}
+
+            @media print {{
+
+    @page {{
+        size: 80mm auto;
+        margin: 0mm;
+    }}
+
+    html, body {{
+        width: 70mm;
+        max-width: 70mm;
+        margin: 0 !important;
+    }}
+
+    body {{
+        zoom: 0.95;
+        padding-left: 6mm !important;
+        padding-right: 2mm !important;
+        padding-top: 2mm !important;
+        padding-bottom: 2mm !important;
+    }}
+}}
+
+        </style>
+
+    </head>
+
+    <body>
+
+        <div class='center'>
+
+            <h2 style='margin:0;'>
+                MIL-DAN
+            </h2>
+
+            <div>
+                Ferretería
+            </div>
+
+        </div>
+
+        <div class='line'></div>
+
+        <div>
+            Fecha: {DateTime.Now:dd/MM/yyyy HH:mm}
+        </div>
+
+        <div>
+            Cliente: {nombreCliente}
+        </div>
+
+        <div>
+            Pago: {FormaPagoSeleccionada.GetDisplayName()}
+        </div>
+
+        <div class='line'></div>
+
+        <table>
+            {detalleHtml}
+        </table>
+
+        <div class='line'></div>
+
+        <table>
+
+            <tr>
+                <td>Subtotal</td>
+
+                <td class='right nowrap'>
+                    ${Factura.Subtotal:N2}
+                </td>
+            </tr>
+
+            <tr>
+                <td>IVA</td>
+
+                <td class='right nowrap'>
+                    ${(Factura.TotalIva21 + Factura.TotalIva105):N2}
+                </td>
+            </tr>
+
+        </table>
+
+        <div class='line'></div>
+
+        <div class='total right nowrap'>
+            TOTAL: ${Factura.Total:N2}
+        </div>
+
+        <div class='line'></div>
+
+        <div class='center'>
+            Gracias por su compra
+        </div>
+
+        <script>
+
+            window.onload = function() {{
+
+                window.print();
+
+                setTimeout(function() {{
+                    window.close();
+                }}, 500);
+
+            }}
+
+        </script>
+
+    </body>
+
+    </html>";
+
+        await JSRuntime.InvokeVoidAsync("abrirTicket", html);
+    }
+
     private void AgregarManual()
     {
         Factura.Detalles.Add(new FacturaDetalleViewModel
@@ -653,5 +865,7 @@
 
         Recalcular();
     }
+
+
     #endregion
 }

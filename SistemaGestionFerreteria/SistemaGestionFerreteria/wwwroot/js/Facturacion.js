@@ -43,3 +43,12 @@ window.focusInputGlobal = function (input) {
     });
 
 };
+
+window.abrirTicket = function (html) {
+
+    const ventana = window.open('', '_blank', 'width=400,height=600');
+
+    ventana.document.open();
+    ventana.document.write(html);
+    ventana.document.close();
+};
