@@ -2,85 +2,479 @@
 @using SistemaGestionFerreteria.Application.Features.Facturacion.Models
 @using SistemaGestionFerreteria.Application.Interfaces
 @using Microsoft.JSInterop
+@using SistemaGestionFerreteria.Application.Helpers
+@using SistemaGestionFerreteria.Domain.Enums
+
 @inject IFacturaService FacturaService
+@inject IJSRuntime JSRuntime
+
 @rendermode InteractiveServer
 
-<h3 class="text-white mb-4">Comprobantes</h3>
+<div class="comprobantes-page">
 
-<div class="card card-dark border-0 shadow-sm">
-    <div class="card-body p-0">
+    <div style="position: relative; margin-bottom: 28px; min-height: 70px;">
 
-        <div class="table-responsive">
-            <table class="table table-dark table-hover mb-0 align-middle">
-                <thead>
-                    <tr>
-                        <th>Número</th>
-                        <th>Fecha</th>
-                        <th>Cliente</th>
-                        <th>Tipo</th>
-                        <th>Total</th>
-                        <th style="width:80px;"></th>
-                    </tr>
-                </thead>
+        <div>
+            <h3 class="text-white mb-1">
+                Comprobantes
+            </h3>
 
-                <tbody>
+            <div class="text-muted small">
+                Consulta, impresión y anulación de comprobantes emitidos
+            </div>
+        </div>
 
-                    @if (Facturas.Count == 0)
-                    {
+        <a href="/facturacion"
+               class="btn btn-primary"
+               style="position: absolute;
+            right: 0;
+            top: 4px;
+            min-width: 170px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: center;">
+            Nueva venta
+        </a>
+
+    </div>
+
+    <div class="card card-dark border-0 shadow-sm mb-4">
+        <div class="card-body">
+
+            <div class="row g-3 align-items-end">
+
+                <div class="col-md-3">
+                    <label class="form-label text-white">Desde</label>
+                    <input type="date"
+                           class="form-control form-control-dark"
+                           @bind="FechaDesde" />
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label text-white">Hasta</label>
+                    <input type="date"
+                           class="form-control form-control-dark"
+                           @bind="FechaHasta" />
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label text-white">Cliente</label>
+                    <input type="text"
+                           class="form-control form-control-dark"
+                           placeholder="Buscar cliente..."
+                           @bind="FiltroCliente" />
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label text-white">Tipo</label>
+                    <select class="form-select form-control-dark"
+                            @bind="FiltroTipo">
+                        <option value="">Todos</option>
+                        <option value="Presupuesto">Presupuesto</option>
+                        <option value="FacturaA">FacturaA</option>
+                        <option value="FacturaB">FacturaB</option>
+                        <option value="FacturaC">FacturaC</option>
+                        <option value="Remito">Remito</option>
+                        <option value="NotaCredito">NotaCredito</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label text-white">Número</label>
+                    <input type="text"
+                           class="form-control form-control-dark"
+                           placeholder="0001-00000001"
+                           @bind="FiltroNumero" />
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label text-white">Estado</label>
+                    <select class="form-select form-control-dark"
+                            disabled>
+                        <option>Todos</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6 d-flex gap-2 justify-content-end">
+                    <button class="btn btn-outline-light"
+                            @onclick="Limpiar">
+                        Limpiar
+                    </button>
+
+                    <button class="btn btn-primary"
+                            @onclick="Buscar">
+                        Buscar
+                    </button>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <div class="card card-dark border-0 shadow-sm">
+        <div class="card-body p-0">
+
+            <div class="table-responsive comprobantes-table-container">
+                <table class="table table-dark table-hover mb-0 align-middle comprobantes-table">
+                    <thead>
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-4">
-                                No hay comprobantes cargados
-                            </td>
+                            <th>Número</th>
+                            <th>Fecha</th>
+                            <th>Cliente</th>
+                            <th>Tipo</th>
+                            <th class="text-end">Total</th>
+                            <th class="text-center">Estado</th>
+                            <th class="text-end">Acciones</th>
                         </tr>
-                    }
-                    else
-                    {
-                        @foreach (var f in Facturas)
+                    </thead>
+
+                    <tbody>
+                        @if (FacturasFiltradas.Count == 0)
                         {
                             <tr>
-                                <td>
-                                    @($"{f.PuntoVenta:D4}-{f.NumeroComprobante:D8}")
-                                </td>
-
-                                <td>
-                                    @f.Fecha.ToString("dd/MM/yyyy")
-                                </td>
-
-                                <td>
-                                    @f.Cliente
-                                </td>
-
-                                <td>
-                                    @f.TipoComprobante
-                                </td>
-
-                                <td>
-                                    $@f.Total.ToString("N2")
-                                </td>
-
-                                <td>
-                                    <button class="btn btn-outline-light btn-sm">
-                                        Ver
-                                    </button>
+                                <td colspan="7" class="text-center text-muted py-5">
+                                    No hay comprobantes para mostrar
                                 </td>
                             </tr>
                         }
-                    }
+                        else
+                        {
+                            @foreach (var f in FacturasFiltradas)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">
+                                        @($"{f.PuntoVenta:D4}-{f.NumeroComprobante:D8}")
+                                    </td>
 
-                </tbody>
-            </table>
+                                    <td>
+                                        @f.Fecha.ToString("dd/MM/yyyy")
+                                    </td>
+
+                                    <td>
+                                        @f.Cliente
+                                    </td>
+
+                                    <td>
+                                        <span class="badge bg-secondary">
+                                            @f.TipoComprobante
+                                        </span>
+                                    </td>
+
+                                    <td class="text-end fw-semibold">
+                                        $@f.Total.ToString("N2")
+                                    </td>
+
+                                    <td class="text-center">
+                                        @if (f.Estado == EstadoFactura.Anulada)
+                                        {
+                                            <span class="badge bg-danger">
+                                                Anulada
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success">
+                                                Emitida
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        <div class="d-flex gap-2 justify-content-end">
+                                            <a class="btn btn-outline-light btn-sm d-inline-flex align-items-center justify-content-center"
+                                                   style="min-width: 74px; height: 46px;"
+                                                   href="@($"/facturacion/ver/{f.IdFactura}")">
+                                                Ver
+                                            </a>
+
+                                            <button class="btn btn-outline-info btn-sm"
+                                                    @onclick="() => ImprimirComprobante(f)">
+                                                Imprimir
+                                            </button>
+
+                                            <button class="btn btn-outline-danger btn-sm"
+                                                    disabled="@(f.Estado == EstadoFactura.Anulada)"
+                                                    @onclick="() => AnularComprobante(f)">
+                                                Anular
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
         </div>
-
     </div>
+
 </div>
 
 @code {
 
     private List<FacturaListadoViewModel> Facturas = new();
+    private List<FacturaListadoViewModel> FacturasFiltradas = new();
+
+    private DateTime? FechaDesde;
+    private DateTime? FechaHasta;
+    private string? FiltroCliente;
+    private string? FiltroNumero;
+    private string? FiltroTipo;
+
 
     protected override async Task OnInitializedAsync()
     {
         Facturas = await FacturaService.ObtenerTodasAsync();
+        FacturasFiltradas = Facturas;
     }
 
+    private void Buscar()
+    {
+        FacturasFiltradas = Facturas
+            .Where(f =>
+                (!FechaDesde.HasValue || f.Fecha.Date >= FechaDesde.Value.Date)
+                &&
+                (!FechaHasta.HasValue || f.Fecha.Date <= FechaHasta.Value.Date)
+                &&
+                (string.IsNullOrWhiteSpace(FiltroCliente)
+                    || f.Cliente.Contains(FiltroCliente, StringComparison.OrdinalIgnoreCase))
+                &&
+                (string.IsNullOrWhiteSpace(FiltroNumero)
+                    || $"{f.PuntoVenta:D4}-{f.NumeroComprobante:D8}".Contains(FiltroNumero))
+                &&
+                (string.IsNullOrWhiteSpace(FiltroTipo)
+                    || f.TipoComprobante.ToString() == FiltroTipo)
+            )
+            .ToList();
+    }
+
+    private void Limpiar()
+    {
+        FechaDesde = null;
+        FechaHasta = null;
+        FiltroCliente = null;
+        FiltroNumero = null;
+        FiltroTipo = null;
+
+        FacturasFiltradas = Facturas;
+    }
+
+    private async Task ImprimirComprobante(FacturaListadoViewModel item)
+    {
+        var factura = await FacturaService.ObtenerPorIdAsync(item.IdFactura);
+
+        if (factura is null)
+            return;
+
+        var pago = factura.Pagos.FirstOrDefault();
+
+        var formaPago = pago is null
+            ? "Sin informar"
+            : pago.FormaPago.GetDisplayName();
+
+        var detalleHtml = string.Join("", factura.Detalles.Select(x =>
+            $@"
+        <tr>
+            <td style='width:45%; word-break:break-word;'>
+                {x.Descripcion}
+            </td>
+
+            <td style='width:20%; text-align:right;'>
+                x{x.Cantidad}
+            </td>
+
+            <td style='width:35%; text-align:right; white-space:nowrap;'>
+                ${x.Subtotal:N2}
+            </td>
+        </tr>"
+        ));
+
+        var html = $@"
+            <html>
+            <head>
+                <title>Ticket</title>
+            
+                <style>
+                    * {{
+                        box-sizing: border-box;
+                    }}
+            
+                    html, body {{
+                        margin: 0;
+                        padding: 0;
+                        width: 72mm;
+                        max-width: 72mm;
+                        overflow-x: hidden;
+                    }}
+            
+                    body {{
+                        font-family: Consolas, monospace;
+                        color: black;
+                        font-size: 11px;
+                        padding-top: 2mm;
+                        padding-right: 2mm;
+                        padding-bottom: 2mm;
+                        padding-left: 5mm;
+                    }}
+            
+                    .center {{
+                        text-align: center;
+                    }}
+            
+                    .line {{
+                        border-top: 1px dashed black;
+                        margin: 6px 0;
+                    }}
+            
+                    table {{
+                        width: 100%;
+                        border-collapse: collapse;
+                        table-layout: fixed;
+                    }}
+            
+                    td {{
+                        padding: 2px 0;
+                        vertical-align: top;
+                    }}
+            
+                    .right {{
+                        text-align: right;
+                    }}
+            
+                    .total {{
+                        font-size: 20px;
+                        font-weight: bold;
+                    }}
+            
+                    .nowrap {{
+                        white-space: nowrap;
+                    }}
+            
+                    @media print {{
+                        @page {{
+                            size: 80mm auto;
+                            margin: 0mm;
+                        }}
+            
+                        html, body {{
+                            width: 70mm;
+                            max-width: 70mm;
+                            margin: 0 !important;
+                        }}
+            
+                        body {{
+                            zoom: 0.95;
+                            padding-left: 6mm !important;
+                            padding-right: 2mm !important;
+                            padding-top: 2mm !important;
+                            padding-bottom: 2mm !important;
+                        }}
+                    }}
+                </style>
+            </head>
+            
+            <body>
+            
+                <div class='center'>
+                    <h2 style='margin:0;'>
+                        MIL-DAN
+                    </h2>
+            
+                    <div>
+                        Ferretería
+                    </div>
+                </div>
+            
+                <div class='line'></div>
+            
+                <div>
+                    Comprobante: {item.PuntoVenta:D4}-{item.NumeroComprobante:D8}
+                </div>
+            
+                <div>
+                    Fecha: {factura.Fecha:dd/MM/yyyy}
+                </div>
+            
+                <div>
+                    Cliente: {item.Cliente}
+                </div>
+            
+                <div>
+                    Pago: {formaPago}
+                </div>
+            
+                <div class='line'></div>
+            
+                <table>
+                    {detalleHtml}
+                </table>
+            
+                <div class='line'></div>
+            
+                <table>
+                    <tr>
+                        <td>Subtotal</td>
+                        <td class='right nowrap'>
+                            ${factura.Subtotal:N2}
+                        </td>
+                    </tr>
+            
+                    <tr>
+                        <td>IVA</td>
+                        <td class='right nowrap'>
+                            ${(factura.TotalIva21 + factura.TotalIva105 + factura.TotalIva27):N2}
+                        </td>
+                    </tr>
+                </table>
+            
+                <div class='line'></div>
+            
+                <div class='total right nowrap'>
+                    TOTAL: ${factura.Total:N2}
+                </div>
+            
+                <div class='line'></div>
+            
+                <div class='center'>
+                    Gracias por su compra
+                </div>
+            
+                <script>
+                    window.onload = function() {{
+                        window.print();
+            
+                        setTimeout(function() {{
+                            window.close();
+                        }}, 500);
+                    }}
+                </script>
+            
+            </body>
+            </html>";
+
+        await JSRuntime.InvokeVoidAsync("abrirTicket", html);
+    }
+
+    private async Task AnularComprobante(FacturaListadoViewModel item)
+    {
+        if (item.Estado == EstadoFactura.Anulada)
+            return;
+
+        var confirma = await JSRuntime.InvokeAsync<bool>(
+            "confirm",
+            $"¿Seguro que desea anular el comprobante {item.PuntoVenta:D4}-{item.NumeroComprobante:D8}?"
+        );
+
+        if (!confirma)
+            return;
+
+        await FacturaService.AnularAsync(item.IdFactura);
+
+        Facturas = await FacturaService.ObtenerTodasAsync();
+
+        Buscar();
+    }
 }

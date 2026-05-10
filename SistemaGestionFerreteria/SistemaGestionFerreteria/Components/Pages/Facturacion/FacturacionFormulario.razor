@@ -1,4 +1,5 @@
 ﻿@page "/facturacion"
+@page "/facturacion/ver/{IdFactura:int}"
 @using SistemaGestionFerreteria.Application.Features.Clientes.Models
 @using SistemaGestionFerreteria.Application.Features.Facturacion.Models
 @using SistemaGestionFerreteria.Application.Features.Productos.Models
@@ -8,33 +9,57 @@
 @using SistemaGestionFerreteria.Infrastructure.Services.Clientes
 @using SistemaGestionFerreteria.Application.Helpers
 @rendermode InteractiveServer
+@inject NavigationManager Navigation
 
 <div class="container-fluid py-4 facturacion-page">
 
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="mb-1 text-white">Facturación</h2>
+            <h2 class="mb-1 text-white">
+                @(EsModoLectura ? "Detalle del comprobante" : "Facturación")
+            </h2>
+
             <div class="text-muted">
-                Alta de factura / presupuesto / comprobante
+                @(EsModoLectura
+                    ? "Consulta de comprobante emitido"
+                    : "Alta de factura / presupuesto / comprobante")
             </div>
         </div>
 
         <div class="d-flex gap-2">
-            <button class="btn btn-outline-light">
-                Cancelar
-            </button>
 
-            <button class="btn btn-success px-4"
-                    disabled="@(!PuedeGuardar)"
-                    @onclick="Guardar">
-                Guardar
-            </button>
+            @if (EsModoLectura)
+            {
+                <button class="btn btn-outline-light"
+                        @onclick="VolverAlListado">
+                    Volver
+                </button>
 
-            <button class="btn btn-outline-info"
-                    disabled="@(!Factura.Detalles.Any())"
-                    @onclick="ImprimirTicket">
-                Ticket
-            </button>
+                <button class="btn btn-outline-info"
+                        disabled="@(!Factura.Detalles.Any())"
+                        @onclick="ImprimirTicket">
+                    Imprimir
+                </button>
+            }
+            else
+            {
+                <button class="btn btn-outline-light">
+                    Cancelar
+                </button>
+
+                <button class="btn btn-success px-4"
+                        disabled="@(!PuedeGuardar)"
+                        @onclick="Guardar">
+                    Guardar
+                </button>
+
+                <button class="btn btn-outline-info"
+                        disabled="@(!Factura.Detalles.Any())"
+                        @onclick="ImprimirTicket">
+                    Ticket
+                </button>
+            }
+
         </div>
     </div>
 
@@ -50,7 +75,8 @@
                         <div class="col-md-4">
                             <label class="form-label">Cliente</label>
                             <select class="form-select"
-                                    @bind="Factura.IdCliente">
+                                    @bind="Factura.IdCliente"
+                                    disabled="@EsModoLectura">
 
                                 <option value="">Seleccionar cliente...</option>
 
@@ -66,7 +92,9 @@
 
                         <div class="col-md-2">
                             <label class="form-label">Comprobante</label>
-                            <select class="form-select" @bind="Factura.TipoComprobante">
+                            <select class="form-select"
+                                    @bind="Factura.TipoComprobante"
+                                    disabled="@EsModoLectura">
                                 @foreach (TipoComprobante item in Enum.GetValues(typeof(TipoComprobante)))
                                 {
                                     <option value="@item">
@@ -80,19 +108,25 @@
                             <label class="form-label">Número</label>
                             <input class="form-control"
                                    value="@(Factura.NumeroComprobante == 0
-                                                                                                                                                                            ? "Se asigna al guardar"
-                                                                                                                                                                            : $"{Factura.PuntoVenta:D4}-{Factura.NumeroComprobante:D8}")"
+                                                                                              ? "Se asigna al guardar"
+                                                                                              : $"{Factura.PuntoVenta:D4}-{Factura.NumeroComprobante:D8}")"
                                    readonly />
                         </div>
 
                         <div class="col-md-2">
                             <label class="form-label">Fecha</label>
-                            <input type="date" class="form-control" @bind="Factura.Fecha" />
+                            <input type="date"
+                                   class="form-control"
+                                   @bind="Factura.Fecha"
+                                   disabled="@EsModoLectura" />
                         </div>
 
                         <div class="col-md-2 d-flex align-items-end">
                             <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="chkAfip" />
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="chkAfip"
+                                       disabled="@EsModoLectura" />
                                 <label class="form-check-label" for="chkAfip">
                                     Enviar a AFIP
                                 </label>
@@ -102,7 +136,9 @@
                         <div class="col-md-4">
                             <label class="form-label">Condición de venta</label>
 
-                            <select class="form-select" @bind="Factura.CondicionVenta">
+                            <select class="form-select"
+                                    @bind="Factura.CondicionVenta"
+                                    disabled="@EsModoLectura">
                                 @foreach (CondicionVenta item in Enum.GetValues(typeof(CondicionVenta)))
                                 {
                                     <option value="@item">
@@ -114,15 +150,21 @@
 
                         <div class="col-md-4">
                             <label class="form-label">Observación</label>
-                            <input class="form-control" placeholder="Observación general..." />
+                            <input class="form-control"
+                                   placeholder="Observación general..."
+                                   @bind="Factura.Observacion"
+                                   disabled="@EsModoLectura" />
                         </div>
 
                         <div class="col-md-4">
                             <label class="form-label">Estado</label>
-                            <input class="form-control" value="Borrador" readonly />
+                            <input class="form-control"
+                                   value="@(EsModoLectura ? "Emitida" : "Borrador")"
+                                   readonly />
                         </div>
 
                     </div>
+
                 </div>
             </div>
         </div>
@@ -130,61 +172,64 @@
         <!-- DETALLE -->
         <div class="col-lg-8">
             <div class="card card-dark shadow-sm border-0 h-100">
+
                 <div class="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 text-white">Detalle</h5>
 
-                    <div style="max-width: 500px;">
+                    @if (!EsModoLectura)
+                    {
+                        <div style="max-width: 500px; position: relative;">
 
-                        <small class="text-muted d-block mb-1">
-                            Buscar / escanear producto
-                        </small>
+                            <small class="text-muted d-block mb-1">
+                                Buscar / escanear producto
+                            </small>
 
-                        <div class="d-flex gap-2">
+                            <div class="d-flex gap-2">
 
-                            <input class="form-control form-control-sm"
-                                   placeholder="Buscar producto por nombre o código..."
-                                   @ref="InputBusquedaProducto"
-                                   @bind="BusquedaProducto"
-                                   @bind:event="oninput"
-                                   @onkeyup="OnKeyUpBusqueda" />
+                                <input class="form-control form-control-sm"
+                                       placeholder="Buscar producto por nombre o código..."
+                                       @ref="InputBusquedaProducto"
+                                       @bind="BusquedaProducto"
+                                       @bind:event="oninput"
+                                       @onkeyup="OnKeyUpBusqueda" />
 
-                            <button class="btn btn-outline-light btn-sm"
-                                    @onclick="AgregarManual">
-                                + Manual
-                            </button>
-
-                        </div>
-
-                        @if (!string.IsNullOrWhiteSpace(BusquedaProducto))
-                        {
-                            <div class="list-group position-absolute shadow"
-                                 style="z-index: 2000; width: 100%;">
-
-                                @{
-                                    var resultados = Productos
-                                        .Where(x =>
-                                            x.Descripcion.Contains(BusquedaProducto, StringComparison.OrdinalIgnoreCase) ||
-                                            (!string.IsNullOrWhiteSpace(x.CodigoProducto) &&
-                                             x.CodigoProducto.Contains(BusquedaProducto)))
-                                        .Take(10)
-                                        .ToList();
-                                }
-
-                                @foreach (var p in resultados)
-                                {
-                                    <button type="button"
-                                            class="list-group-item list-group-item-action"
-                                            @onclick="async() => await SeleccionarProducto(p)">
-                                        <strong>@p.Descripcion</strong>
-                                        <div class="small text-muted">@p.CodigoProducto</div>
-                                    </button>
-                                }
+                                <button class="btn btn-outline-light btn-sm"
+                                        @onclick="AgregarManual">
+                                    + Manual
+                                </button>
 
                             </div>
-                        }
 
-                    </div>
+                            @if (!string.IsNullOrWhiteSpace(BusquedaProducto))
+                            {
+                                <div class="list-group position-absolute shadow"
+                                     style="z-index: 2000; width: 100%; top: 100%; left: 0;">
 
+                                    @{
+                                        var resultados = Productos
+                                            .Where(x =>
+                                                x.Descripcion.Contains(BusquedaProducto, StringComparison.OrdinalIgnoreCase) ||
+                                                (!string.IsNullOrWhiteSpace(x.CodigoProducto) &&
+                                                 x.CodigoProducto.Contains(BusquedaProducto)))
+                                            .Take(10)
+                                            .ToList();
+                                    }
+
+                                    @foreach (var p in resultados)
+                                    {
+                                        <button type="button"
+                                                class="list-group-item list-group-item-action"
+                                                @onclick="async () => await SeleccionarProducto(p)">
+                                            <strong>@p.Descripcion</strong>
+                                            <div class="small text-muted">@p.CodigoProducto</div>
+                                        </button>
+                                    }
+
+                                </div>
+                            }
+
+                        </div>
+                    }
                 </div>
 
                 <div class="card-body p-0">
@@ -219,9 +264,9 @@
                                     {
                                         <tr>
                                             <td>@item.CodigoProducto</td>
-                                
+
                                             <td>
-                                                @if (item.IdProducto == null)
+                                                @if (item.IdProducto == null && !EsModoLectura)
                                                 {
                                                     <input class="form-control form-control-sm"
                                                            @bind="item.Descripcion"
@@ -232,42 +277,48 @@
                                                     @item.Descripcion
                                                 }
                                             </td>
-                                
+
                                             <td>
                                                 <input class="form-control form-control-sm"
                                                        type="number"
                                                        @bind="item.Cantidad"
                                                        @bind:event="oninput"
-                                                       @bind:after="Recalcular" />
+                                                       @bind:after="Recalcular"
+                                                       disabled="@EsModoLectura" />
                                             </td>
-                                
+
                                             <td>
                                                 <input class="form-control form-control-sm"
                                                        type="number"
                                                        @bind="item.PrecioUnitario"
                                                        @bind:event="oninput"
-                                                       @bind:after="Recalcular" />
+                                                       @bind:after="Recalcular"
+                                                       disabled="@EsModoLectura" />
                                             </td>
-                                
+
                                             <td>
                                                 <select class="form-select form-select-sm"
                                                         value="@item.PorcentajeIva"
-                                                        @onchange="(e => OnIvaChange(e, item))">
+                                                        @onchange="(e => OnIvaChange(e, item))"
+                                                        disabled="@EsModoLectura">
                                                     <option value="21">21%</option>
                                                     <option value="10.5">10.5%</option>
                                                     <option value="0">0%</option>
                                                 </select>
                                             </td>
-                                
+
                                             <td>
                                                 $@item.Subtotal.ToString("N2")
                                             </td>
-                                
+
                                             <td>
-                                                <button class="btn btn-outline-danger btn-sm"
-                                                        @onclick="() => Eliminar(item)">
-                                                    ×
-                                                </button>
+                                                @if (!EsModoLectura)
+                                                {
+                                                    <button class="btn btn-outline-danger btn-sm"
+                                                            @onclick="() => Eliminar(item)">
+                                                        ×
+                                                    </button>
+                                                }
                                             </td>
                                         </tr>
                                     }
@@ -278,11 +329,13 @@
                     </div>
 
                 </div>
+
             </div>
         </div>
 
-        <!-- TOTALES -->
+        <!-- TOTALES Y PAGO -->
         <div class="col-lg-4">
+
             <div class="card card-dark shadow-sm border-0 mb-4">
                 <div class="card-header bg-transparent border-bottom border-secondary">
                     <h5 class="mb-0 text-white">Totales</h5>
@@ -294,26 +347,26 @@
                         <span class="text-muted">Subtotal</span>
                         <span>$@Factura.Subtotal.ToString("N2")</span>
                     </div>
-                
+
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">IVA 21%</span>
                         <span>$@Factura.TotalIva21.ToString("N2")</span>
                     </div>
-                
+
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">IVA 10.5%</span>
                         <span>$@Factura.TotalIva105.ToString("N2")</span>
                     </div>
-                
+
                     <hr class="border-secondary" />
-                
+
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="fs-5 fw-bold text-white">TOTAL</span>
                         <span class="fs-3 fw-bold text-success">
                             $@Factura.Total.ToString("N2")
                         </span>
                     </div>
-                
+
                 </div>
             </div>
 
@@ -329,7 +382,8 @@
 
                         <select class="form-select"
                                 @bind="FormaPagoSeleccionada"
-                                @bind:after="OnFormaPagoChange">
+                                @bind:after="OnFormaPagoChange"
+                                disabled="@EsModoLectura">
                             @foreach (FormaPago item in Enum.GetValues(typeof(FormaPago)))
                             {
                                 <option value="@item">
@@ -345,7 +399,8 @@
                                type="number"
                                step="0.01"
                                @bind="MontoRecibido"
-                               @bind:event="oninput" />
+                               @bind:event="oninput"
+                               disabled="@EsModoLectura" />
                     </div>
 
                     <div class="alert alert-secondary mb-0">
@@ -407,11 +462,14 @@
 
                         </div>
                     }
+
                 </div>
             </div>
+
         </div>
 
     </div>
+
 </div>
 
 @code {
@@ -461,6 +519,11 @@
         Pagos = new List<FacturaPagoViewModel>()
     };
 
+    [Parameter]
+    public int? IdFactura { get; set; }
+
+    private bool EsModoLectura => IdFactura.HasValue;
+
     #endregion
 
 
@@ -471,14 +534,31 @@
         Productos = await ProductoService.ObtenerTodosAsync();
         Clientes = await ClienteService.ObtenerTodosAsync();
 
+        if (EsModoLectura)
+        {
+            var factura = await FacturaService.ObtenerPorIdAsync(IdFactura!.Value);
+
+            if (factura is not null)
+            {
+                Factura = factura;
+                Recalcular();
+            }
+
+            return;
+        }
+
         Factura.IdCliente = 1;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (!firstRender)
+            return;
+
+        await JSRuntime.InvokeVoidAsync("bloquearZoomGlobal");
+
+        if (!EsModoLectura)
         {
-            await JSRuntime.InvokeVoidAsync("bloquearZoomGlobal");
             await JSRuntime.InvokeVoidAsync("focusInput", InputBusquedaProducto);
         }
     }
@@ -614,6 +694,11 @@
 
         try
         {
+            var imprimir = await JSRuntime.InvokeAsync<bool>(
+                "confirm",
+                "¿Desea imprimir el ticket después de guardar?"
+            );
+
             Factura.Pagos.Clear();
 
             Factura.Pagos.Add(new FacturaPagoViewModel
@@ -625,6 +710,11 @@
             await FacturaService.CrearAsync(Factura);
 
             System.Diagnostics.Debug.WriteLine("Factura guardada correctamente");
+
+            if (imprimir)
+            {
+                await ImprimirTicket();
+            }
 
             Factura = new FacturaViewModel
             {
@@ -855,7 +945,7 @@
     {
         Factura.Detalles.Add(new FacturaDetalleViewModel
         {
-            IdProducto = null, 
+            IdProducto = null,
             CodigoProducto = "MANUAL",
             Descripcion = "Nuevo item",
             Cantidad = 1,
@@ -864,6 +954,11 @@
         });
 
         Recalcular();
+    }
+
+    private void VolverAlListado()
+    {
+        Navigation.NavigateTo("/facturacion/listado");
     }
 
 

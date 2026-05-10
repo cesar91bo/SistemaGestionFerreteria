@@ -24,11 +24,15 @@
 
                 @if (FacturacionAbierto)
                 {
-                    <NavLink href="/facturacion" class="nav-item sub-item">
+                    <NavLink href="/facturacion"
+                             Match="NavLinkMatch.All"
+                             class="nav-item sub-item">
                         Nueva venta
                     </NavLink>
 
-                    <NavLink href="/facturacion/listado" class="nav-item sub-item">
+                    <NavLink href="/facturacion/listado"
+                             Match="NavLinkMatch.All"
+                             class="nav-item sub-item">
                         Comprobantes
                     </NavLink>
                 }
