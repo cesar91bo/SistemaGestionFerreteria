@@ -13,5 +13,7 @@ namespace SistemaGestionFerreteria.Application.Interfaces
         Task<FacturaViewModel?> ObtenerPorIdAsync(int idFactura);
 
         Task<int> ObtenerProximoNumeroAsync(TipoComprobante tipoComprobante, int puntoVenta);
+
+        Task AnularAsync(int idFactura);
     }
 }

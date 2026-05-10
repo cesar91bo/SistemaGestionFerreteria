@@ -174,5 +174,24 @@ namespace SistemaGestionFerreteria.Infrastructure.Services.Facturacion
                 })
                 .FirstOrDefaultAsync();
         }
+
+        public async Task AnularAsync(int idFactura)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            var factura = await context.Facturas
+                .FirstOrDefaultAsync(x => x.IdFactura == idFactura);
+
+            if (factura is null)
+                return;
+
+            if (factura.Estado == EstadoFactura.Anulada)
+                return;
+
+            factura.Estado = EstadoFactura.Anulada;
+            factura.FechaModificacion = DateTime.Now;
+
+            await context.SaveChangesAsync();
+        }
     }
 }
