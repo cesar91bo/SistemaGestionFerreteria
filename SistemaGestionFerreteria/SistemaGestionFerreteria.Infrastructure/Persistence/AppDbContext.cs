@@ -16,6 +16,8 @@ namespace SistemaGestionFerreteria.Infrastructure.Persistence
         public DbSet<Factura> Facturas => Set<Factura>();
         public DbSet<FacturaDetalle> FacturaDetalles => Set<FacturaDetalle>();
         public DbSet<FacturaPago> FacturaPagos => Set<FacturaPago>();
+        public DbSet<Caja> Cajas => Set<Caja>();
+        public DbSet<CajaMovimiento> CajaMovimientos => Set<CajaMovimiento>();
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
@@ -392,6 +394,88 @@ namespace SistemaGestionFerreteria.Infrastructure.Persistence
                     .WithMany(x => x.Pagos)
                     .HasForeignKey(x => x.IdFactura)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<Caja>(entity =>
+            {
+                entity.ToTable("Cajas");
+
+                entity.HasKey(x => x.IdCaja);
+
+                entity.Property(x => x.IdCaja)
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.FechaApertura)
+                    .HasDefaultValueSql("GETDATE()");
+
+                entity.Property(x => x.FondoInicial)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(x => x.TotalIngresos)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(x => x.TotalRetiros)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(x => x.TotalVentas)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(x => x.TotalFinal)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(x => x.Estado)
+                    .HasConversion<int>()
+                    .IsRequired();
+
+                entity.Property(x => x.ObservacionApertura)
+                    .HasMaxLength(500);
+
+                entity.Property(x => x.ObservacionCierre)
+                    .HasMaxLength(500);
+
+                entity.Property(x => x.Activo)
+                    .HasDefaultValue(true);
+
+                entity.Property(x => x.FechaAlta)
+                    .HasDefaultValueSql("GETDATE()");
+            });
+
+            modelBuilder.Entity<CajaMovimiento>(entity =>
+            {
+                entity.ToTable("CajaMovimientos");
+
+                entity.HasKey(x => x.IdCajaMovimiento);
+
+                entity.Property(x => x.IdCajaMovimiento)
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.Fecha)
+                    .HasDefaultValueSql("GETDATE()");
+
+                entity.Property(x => x.Tipo)
+                    .HasConversion<int>()
+                    .IsRequired();
+
+                entity.Property(x => x.Monto)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(x => x.Descripcion)
+                    .HasMaxLength(300)
+                    .IsRequired();
+
+                entity.Property(x => x.Activo)
+                    .HasDefaultValue(true);
+
+                entity.HasOne(x => x.Caja)
+                    .WithMany(x => x.Movimientos)
+                    .HasForeignKey(x => x.IdCaja)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Factura)
+                    .WithMany()
+                    .HasForeignKey(x => x.IdFactura)
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
         }
     }
