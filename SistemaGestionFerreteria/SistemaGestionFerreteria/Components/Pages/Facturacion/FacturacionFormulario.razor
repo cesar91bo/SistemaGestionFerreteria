@@ -48,7 +48,7 @@
                 </button>
 
                 <button class="btn btn-success px-4"
-                        disabled="@(!PuedeGuardar)"
+                        disabled="@(!PuedeGuardar || !HayCajaAbierta)"
                         @onclick="Guardar">
                     Guardar
                 </button>
@@ -62,6 +62,22 @@
 
         </div>
     </div>
+
+    @if (!EsModoLectura)
+    {
+        @if (HayCajaAbierta)
+        {
+            <div class="alert alert-success mb-4">
+                Caja abierta. Puede registrar ventas.
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-danger mb-4">
+                No hay caja abierta. Debe abrir caja antes de registrar una venta.
+            </div>
+        }
+    }
 
     <div class="row g-4">
 
@@ -108,8 +124,8 @@
                             <label class="form-label">Número</label>
                             <input class="form-control"
                                    value="@(Factura.NumeroComprobante == 0
-                                                                                              ? "Se asigna al guardar"
-                                                                                              : $"{Factura.PuntoVenta:D4}-{Factura.NumeroComprobante:D8}")"
+                                                                                                                                                             ? "Se asigna al guardar"
+                                                                                                                                                             : $"{Factura.PuntoVenta:D4}-{Factura.NumeroComprobante:D8}")"
                                    readonly />
                         </div>
 
@@ -208,9 +224,13 @@
                                     @{
                                         var resultados = Productos
                                             .Where(x =>
-                                                x.Descripcion.Contains(BusquedaProducto, StringComparison.OrdinalIgnoreCase) ||
+                                                x.Descripcion.Contains(BusquedaProducto, StringComparison.OrdinalIgnoreCase)
+                                                ||
                                                 (!string.IsNullOrWhiteSpace(x.CodigoProducto) &&
-                                                 x.CodigoProducto.Contains(BusquedaProducto)))
+                                                 x.CodigoProducto.Contains(BusquedaProducto))
+                                                ||
+                                                (!string.IsNullOrWhiteSpace(x.CodigoBarra) &&
+                                                 x.CodigoBarra.Contains(BusquedaProducto)))
                                             .Take(10)
                                             .ToList();
                                     }
@@ -480,6 +500,7 @@
     [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
     [Inject] private IFacturaService FacturaService { get; set; } = default!;
     [Inject] private IClienteService ClienteService { get; set; } = default!;
+    [Inject] private ICajaService CajaService { get; set; } = default!;
 
     #endregion
 
@@ -500,6 +521,8 @@
     private decimal Vuelto => MontoRecibido - Factura.Total;
 
     private string UltimaBusquedaProcesada = "";
+
+    private bool HayCajaAbierta = false;
 
     private bool PuedeGuardar =>
     Factura.Detalles.Any()
@@ -533,6 +556,7 @@
     {
         Productos = await ProductoService.ObtenerTodosAsync();
         Clientes = await ClienteService.ObtenerTodosAsync();
+        HayCajaAbierta = await CajaService.HayCajaAbiertaAsync();
 
         if (EsModoLectura)
         {
@@ -590,9 +614,13 @@
             return;
 
         var resultados = Productos.Where(x =>
-            x.Descripcion.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ||
+            x.Descripcion.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+            ||
             (!string.IsNullOrWhiteSpace(x.CodigoProducto) &&
-             x.CodigoProducto.Contains(busqueda)))
+             x.CodigoProducto.Contains(busqueda))
+            ||
+            (!string.IsNullOrWhiteSpace(x.CodigoBarra) &&
+             x.CodigoBarra.Contains(busqueda)))
             .ToList();
 
         if (e.Key == "Enter")
@@ -694,6 +722,18 @@
 
         try
         {
+            var cajaAbierta = await CajaService.ObtenerCajaAbiertaAsync();
+
+            if (cajaAbierta == null)
+            {
+                await JSRuntime.InvokeVoidAsync(
+                    "alert",
+                    "No hay una caja abierta. Primero debe abrir caja para poder registrar la venta."
+                );
+
+                return;
+            }
+
             var imprimir = await JSRuntime.InvokeAsync<bool>(
                 "confirm",
                 "¿Desea imprimir el ticket después de guardar?"
@@ -707,7 +747,16 @@
                 Monto = Factura.Total
             });
 
-            await FacturaService.CrearAsync(Factura);
+            var idFactura = await FacturaService.CrearAsync(Factura);
+
+            if (FormaPagoSeleccionada == FormaPago.Efectivo)
+            {
+                await CajaService.RegistrarVentaAsync(
+                    cajaAbierta.IdCaja,
+                    idFactura,
+                    Factura.Total
+                );
+            }
 
             System.Diagnostics.Debug.WriteLine("Factura guardada correctamente");
 
@@ -732,6 +781,11 @@
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Error al guardar: {ex.Message}");
+
+            await JSRuntime.InvokeVoidAsync(
+                "alert",
+                $"Error al guardar la factura: {ex.Message}"
+            );
         }
     }
 

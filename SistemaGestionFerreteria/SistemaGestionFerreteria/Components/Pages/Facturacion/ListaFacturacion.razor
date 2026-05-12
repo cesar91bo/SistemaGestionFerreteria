@@ -5,6 +5,7 @@
 @using SistemaGestionFerreteria.Application.Helpers
 @using SistemaGestionFerreteria.Domain.Enums
 
+@inject ICajaService CajaService
 @inject IFacturaService FacturaService
 @inject IJSRuntime JSRuntime
 
@@ -471,10 +472,54 @@
         if (!confirma)
             return;
 
-        await FacturaService.AnularAsync(item.IdFactura);
+        try
+        {
+            var factura = await FacturaService.ObtenerPorIdAsync(item.IdFactura);
 
-        Facturas = await FacturaService.ObtenerTodasAsync();
+            if (factura is null)
+                return;
 
-        Buscar();
+            var pago = factura.Pagos.FirstOrDefault();
+
+            var esEfectivo = pago != null && pago.FormaPago == FormaPago.Efectivo;
+
+            if (esEfectivo)
+            {
+                var cajaAbierta = await CajaService.ObtenerCajaAbiertaAsync();
+
+                if (cajaAbierta == null)
+                {
+                    await JSRuntime.InvokeVoidAsync(
+                        "alert",
+                        "No hay una caja abierta. Para anular un comprobante pagado en efectivo primero debe abrir caja."
+                    );
+
+                    return;
+                }
+
+                await FacturaService.AnularAsync(item.IdFactura);
+
+                await CajaService.RegistrarAnulacionVentaAsync(
+                    cajaAbierta.IdCaja,
+                    item.IdFactura,
+                    factura.Total
+                );
+            }
+            else
+            {
+                await FacturaService.AnularAsync(item.IdFactura);
+            }
+
+            Facturas = await FacturaService.ObtenerTodasAsync();
+
+            Buscar();
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync(
+                "alert",
+                $"Error al anular el comprobante: {ex.Message}"
+            );
+        }
     }
 }

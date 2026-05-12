@@ -396,3 +396,19 @@ hr {
     top: 0;
     z-index: 5;
 }
+
+.caja-page {
+    padding-bottom: 2rem;
+}
+
+.caja-table-container {
+    max-height: 480px;
+    overflow-y: auto;
+    overflow-x: auto;
+}
+
+.caja-table-container thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
