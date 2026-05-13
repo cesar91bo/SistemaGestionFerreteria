@@ -276,185 +276,334 @@
             ? "Sin informar"
             : pago.FormaPago.GetDisplayName();
 
+        var tipoComprobante = item.TipoComprobante.GetDisplayName();
+
+        var numeroComprobante = $"{item.PuntoVenta:D4}-{item.NumeroComprobante:D8}";
+
+        var totalIva = factura.TotalIva21 + factura.TotalIva105 + factura.TotalIva27;
+
         var detalleHtml = string.Join("", factura.Detalles.Select(x =>
             $@"
         <tr>
-            <td style='width:45%; word-break:break-word;'>
+            <td colspan='3' class='producto'>
                 {x.Descripcion}
             </td>
+        </tr>
 
-            <td style='width:20%; text-align:right;'>
-                x{x.Cantidad}
+        <tr>
+            <td class='cantidad'>
+                {x.Cantidad:N2} x
             </td>
 
-            <td style='width:35%; text-align:right; white-space:nowrap;'>
+            <td class='precio-unitario'>
+                ${x.PrecioUnitario:N2}
+            </td>
+
+            <td class='importe'>
                 ${x.Subtotal:N2}
             </td>
         </tr>"
         ));
 
         var html = $@"
-            <html>
-            <head>
-                <title>Ticket</title>
-            
-                <style>
-                    * {{
-                        box-sizing: border-box;
-                    }}
-            
-                    html, body {{
-                        margin: 0;
-                        padding: 0;
-                        width: 72mm;
-                        max-width: 72mm;
-                        overflow-x: hidden;
-                    }}
-            
-                    body {{
-                        font-family: Consolas, monospace;
-                        color: black;
-                        font-size: 11px;
-                        padding-top: 2mm;
-                        padding-right: 2mm;
-                        padding-bottom: 2mm;
-                        padding-left: 5mm;
-                    }}
-            
-                    .center {{
-                        text-align: center;
-                    }}
-            
-                    .line {{
-                        border-top: 1px dashed black;
-                        margin: 6px 0;
-                    }}
-            
-                    table {{
-                        width: 100%;
-                        border-collapse: collapse;
-                        table-layout: fixed;
-                    }}
-            
-                    td {{
-                        padding: 2px 0;
-                        vertical-align: top;
-                    }}
-            
-                    .right {{
-                        text-align: right;
-                    }}
-            
-                    .total {{
-                        font-size: 20px;
-                        font-weight: bold;
-                    }}
-            
-                    .nowrap {{
-                        white-space: nowrap;
-                    }}
-            
-                    @media print {{
-                        @page {{
-                            size: 80mm auto;
-                            margin: 0mm;
-                        }}
-            
-                        html, body {{
-                            width: 70mm;
-                            max-width: 70mm;
-                            margin: 0 !important;
-                        }}
-            
-                        body {{
-                            zoom: 0.95;
-                            padding-left: 6mm !important;
-                            padding-right: 2mm !important;
-                            padding-top: 2mm !important;
-                            padding-bottom: 2mm !important;
-                        }}
-                    }}
-                </style>
-            </head>
-            
-            <body>
-            
-                <div class='center'>
-                    <h2 style='margin:0;'>
-                        MIL-DAN
-                    </h2>
-            
-                    <div>
-                        Ferretería
-                    </div>
-                </div>
-            
-                <div class='line'></div>
-            
-                <div>
-                    Comprobante: {item.PuntoVenta:D4}-{item.NumeroComprobante:D8}
-                </div>
-            
-                <div>
-                    Fecha: {factura.Fecha:dd/MM/yyyy}
-                </div>
-            
-                <div>
-                    Cliente: {item.Cliente}
-                </div>
-            
-                <div>
-                    Pago: {formaPago}
-                </div>
-            
-                <div class='line'></div>
-            
-                <table>
-                    {detalleHtml}
-                </table>
-            
-                <div class='line'></div>
-            
-                <table>
-                    <tr>
-                        <td>Subtotal</td>
-                        <td class='right nowrap'>
-                            ${factura.Subtotal:N2}
-                        </td>
-                    </tr>
-            
-                    <tr>
-                        <td>IVA</td>
-                        <td class='right nowrap'>
-                            ${(factura.TotalIva21 + factura.TotalIva105 + factura.TotalIva27):N2}
-                        </td>
-                    </tr>
-                </table>
-            
-                <div class='line'></div>
-            
-                <div class='total right nowrap'>
-                    TOTAL: ${factura.Total:N2}
-                </div>
-            
-                <div class='line'></div>
-            
-                <div class='center'>
-                    Gracias por su compra
-                </div>
-            
-                <script>
-                    window.onload = function() {{
-                        window.print();
-            
-                        setTimeout(function() {{
-                            window.close();
-                        }}, 500);
-                    }}
-                </script>
-            
-            </body>
-            </html>";
+              <html>
+              <head>
+                  <title>Ticket</title>
+              
+                  <style>
+                      * {{
+                          box-sizing: border-box;
+                      }}
+              
+                      html, body {{
+                          margin: 0;
+                          padding: 0;
+                          width: 72mm;
+                          max-width: 72mm;
+                          overflow-x: hidden;
+                      }}
+              
+                      body {{
+                          font-family: Consolas, 'Courier New', monospace;
+                          color: black;
+                          font-size: 11px;
+                          padding-top: 2mm;
+                          padding-right: 2mm;
+                          padding-bottom: 2mm;
+                          padding-left: 5mm;
+                      }}
+              
+                      .center {{
+                          text-align: center;
+                      }}
+              
+                      .titulo {{
+                          font-size: 20px;
+                          font-weight: bold;
+                          letter-spacing: 1px;
+                          margin: 0;
+                          line-height: 1.1;
+                      }}
+              
+                      .subtitulo {{
+                          font-size: 12px;
+                          font-weight: bold;
+                          margin-top: 2px;
+                      }}
+              
+                      .info-local {{
+                          font-size: 10px;
+                          line-height: 1.25;
+                          margin-top: 4px;
+                      }}
+              
+                      .line {{
+                          border-top: 1px dashed black;
+                          margin: 6px 0;
+                      }}
+              
+                      .line-solid {{
+                          border-top: 1px solid black;
+                          margin: 6px 0;
+                      }}
+              
+                      .datos {{
+                          width: 100%;
+                          font-size: 10.5px;
+                      }}
+              
+                      .datos td {{
+                          padding: 1px 0;
+                          vertical-align: top;
+                      }}
+              
+                      .label {{
+                          width: 25%;
+                          font-weight: bold;
+                      }}
+              
+                      .valor {{
+                          width: 75%;
+                          text-align: left;
+                      }}
+              
+                      table {{
+                          width: 100%;
+                          border-collapse: collapse;
+                          table-layout: fixed;
+                      }}
+              
+                      td {{
+                          padding: 2px 0;
+                          vertical-align: top;
+                      }}
+              
+                      .encabezado-detalle {{
+                          font-weight: bold;
+                          font-size: 10px;
+                      }}
+              
+                      .producto {{
+                          width: 100%;
+                          word-break: break-word;
+                          font-weight: bold;
+                          padding-top: 4px;
+                      }}
+              
+                      .cantidad {{
+                          width: 24%;
+                          text-align: left;
+                          white-space: nowrap;
+                      }}
+              
+                      .precio-unitario {{
+                          width: 34%;
+                          text-align: right;
+                          white-space: nowrap;
+                      }}
+              
+                      .importe {{
+                          width: 42%;
+                          text-align: right;
+                          white-space: nowrap;
+                          font-weight: bold;
+                      }}
+              
+                      .right {{
+                          text-align: right;
+                      }}
+              
+                      .nowrap {{
+                          white-space: nowrap;
+                      }}
+              
+                      .total-label {{
+                          font-size: 15px;
+                          font-weight: bold;
+                      }}
+              
+                      .total-valor {{
+                          font-size: 17px;
+                          font-weight: bold;
+                          text-align: right;
+                          white-space: nowrap;
+                      }}
+              
+                      .pie {{
+                          text-align: center;
+                          font-size: 10.5px;
+                          line-height: 1.35;
+                          margin-top: 6px;
+                      }}
+              
+                      .fiscal-pendiente {{
+                          font-size: 9px;
+                          margin-top: 6px;
+                      }}
+              
+                      @media print {{
+              
+                          @page {{
+                              size: 80mm auto;
+                              margin: 0mm;
+                          }}
+              
+                          html, body {{
+                              width: 70mm;
+                              max-width: 70mm;
+                              margin: 0 !important;
+                          }}
+              
+                          body {{
+                              zoom: 0.95;
+                              padding-left: 6mm !important;
+                              padding-right: 2mm !important;
+                              padding-top: 2mm !important;
+                              padding-bottom: 2mm !important;
+                          }}
+                      }}
+                  </style>
+              </head>
+              
+              <body>
+              
+                  <div class='center'>
+                      <div class='titulo'>MIL-DAN</div>
+                      <div class='subtitulo'>FERRETERÍA</div>
+              
+                      <div class='info-local'>
+                          AV. 25 DE MAYO Y ESQ. SAN MARTÍN<br />
+                          TEL: 3725 418268
+                      </div>
+                  </div>
+              
+                  <div class='line-solid'></div>
+              
+                  <table class='datos'>
+                      <tr>
+                          <td class='label'>Fecha:</td>
+                          <td class='valor'>{factura.Fecha:dd/MM/yyyy}</td>
+                      </tr>
+              
+                      <tr>
+                          <td class='label'>Hora:</td>
+                          <td class='valor'>{factura.Fecha:HH:mm}</td>
+                      </tr>
+              
+                      <tr>
+                          <td class='label'>Comp.:</td>
+                          <td class='valor'>{tipoComprobante}</td>
+                      </tr>
+              
+                      <tr>
+                          <td class='label'>Nro:</td>
+                          <td class='valor'>{numeroComprobante}</td>
+                      </tr>
+              
+                      <tr>
+                          <td class='label'>Cliente:</td>
+                          <td class='valor'>{item.Cliente}</td>
+                      </tr>
+              
+                      <tr>
+                          <td class='label'>Pago:</td>
+                          <td class='valor'>{formaPago}</td>
+                      </tr>
+                  </table>
+              
+                  <div class='line'></div>
+              
+                  <table>
+                      <tr class='encabezado-detalle'>
+                          <td style='width:24%;'>Cant.</td>
+                          <td style='width:34%; text-align:right;'>P.Unit</td>
+                          <td style='width:42%; text-align:right;'>Importe</td>
+                      </tr>
+              
+                      {detalleHtml}
+                  </table>
+              
+                  <div class='line'></div>
+              
+                  <table>
+                      <tr>
+                          <td>Subtotal</td>
+                          <td class='right nowrap'>${factura.Subtotal:N2}</td>
+                      </tr>
+              
+                      <tr>
+                          <td>IVA 21%</td>
+                          <td class='right nowrap'>${factura.TotalIva21:N2}</td>
+                      </tr>
+              
+                      <tr>
+                          <td>IVA 10.5%</td>
+                          <td class='right nowrap'>${factura.TotalIva105:N2}</td>
+                      </tr>
+              
+                      <tr>
+                          <td>IVA 27%</td>
+                          <td class='right nowrap'>${factura.TotalIva27:N2}</td>
+                      </tr>
+              
+                      <tr>
+                          <td>Total IVA</td>
+                          <td class='right nowrap'>${totalIva:N2}</td>
+                      </tr>
+                  </table>
+              
+                  <div class='line-solid'></div>
+              
+                  <table>
+                      <tr>
+                          <td class='total-label'>TOTAL</td>
+                          <td class='total-valor'>${factura.Total:N2}</td>
+                      </tr>
+                  </table>
+              
+                  <div class='line'></div>
+              
+                  <div class='pie'>
+                      Gracias por su compra<br />
+                      Vuelva pronto
+                      <div class='fiscal-pendiente'>
+                          Comprobante no fiscal<br />
+                          Datos ARCA pendientes de configuración
+                      </div>
+                  </div>
+              
+                  <script>
+                      window.onload = function() {{
+                          window.print();
+              
+                          setTimeout(function() {{
+                              window.close();
+                          }}, 500);
+                      }}
+                  </script>
+              
+              </body>
+              </html>";
 
         await JSRuntime.InvokeVoidAsync("abrirTicket", html);
     }
