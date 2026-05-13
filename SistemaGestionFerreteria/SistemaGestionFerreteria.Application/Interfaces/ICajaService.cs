@@ -21,5 +21,7 @@ namespace SistemaGestionFerreteria.Application.Interfaces
         Task RegistrarVentaAsync(int idCaja, int idFactura, decimal monto);
 
         Task RegistrarAnulacionVentaAsync(int idCaja, int idFactura, decimal monto);
+
+        Task<List<CajaViewModel>> ObtenerCajasCerradasAsync();
     }
 }

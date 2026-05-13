@@ -266,5 +266,28 @@ namespace SistemaGestionFerreteria.Infrastructure.Services.Caja
 
             await _context.SaveChangesAsync();
         }
+
+        public async Task<List<CajaViewModel>> ObtenerCajasCerradasAsync()
+        {
+            return await _context.Cajas
+                .AsNoTracking()
+                .Where(x => x.Activo && x.Estado == EstadoCaja.Cerrada)
+                .OrderByDescending(x => x.FechaCierre)
+                .Select(x => new CajaViewModel
+                {
+                    IdCaja = x.IdCaja,
+                    FechaApertura = x.FechaApertura,
+                    FechaCierre = x.FechaCierre,
+                    FondoInicial = x.FondoInicial,
+                    TotalIngresos = x.TotalIngresos,
+                    TotalRetiros = x.TotalRetiros,
+                    TotalVentas = x.TotalVentas,
+                    TotalFinal = x.TotalFinal,
+                    Estado = x.Estado,
+                    ObservacionApertura = x.ObservacionApertura,
+                    ObservacionCierre = x.ObservacionCierre
+                })
+                .ToListAsync();
+        }
     }
 }
