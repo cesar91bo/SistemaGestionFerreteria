@@ -1,4 +1,16 @@
 ﻿@page "/"
+@using SistemaGestionFerreteria.Application.Features.Facturacion.Models
+@using SistemaGestionFerreteria.Application.Features.Caja.Models
+@using SistemaGestionFerreteria.Application.Features.Productos.Models
+@using SistemaGestionFerreteria.Application.Features.Clientes.Models
+@using SistemaGestionFerreteria.Application.Interfaces
+@using SistemaGestionFerreteria.Domain.Enums
+@rendermode InteractiveServer
+
+@inject IFacturaService FacturaService
+@inject ICajaService CajaService
+@inject IProductoService ProductoService
+@inject IClienteService ClienteService
 
 <PageTitle>Home</PageTitle>
 
@@ -16,31 +28,37 @@
         <div class="col-12 col-md-6 col-xl-3">
             <div class="dashboard-card">
                 <div class="dashboard-label">Ventas de hoy</div>
-                <div class="dashboard-value">$ 0</div>
-                <div class="dashboard-detail">0 comprobantes</div>
+                <div class="dashboard-value">$ @TotalVentasHoy.ToString("N2")</div>
+                <div class="dashboard-detail">@CantidadComprobantesHoy comprobantes</div>
             </div>
         </div>
 
         <div class="col-12 col-md-6 col-xl-3">
             <div class="dashboard-card">
                 <div class="dashboard-label">Caja</div>
-                <div class="dashboard-value">$ 0</div>
-                <div class="dashboard-detail">Sin movimientos</div>
+                <div class="dashboard-value">$ @TotalCaja.ToString("N2")</div>
+                <div class="dashboard-detail">
+                    @(CajaAbierta == null ? "Caja sin abrir" : "Caja abierta")
+                </div>
             </div>
         </div>
 
         <div class="col-12 col-md-6 col-xl-3">
             <div class="dashboard-card">
                 <div class="dashboard-label">Productos</div>
-                <div class="dashboard-value">0</div>
-                <div class="dashboard-detail">Sin stock bajo</div>
+                <div class="dashboard-value">@CantidadProductos</div>
+                <div class="dashboard-detail">
+                    @(CantidadStockBajo == 0
+                        ? "Sin stock bajo"
+                        : $"{CantidadStockBajo} con stock bajo")
+                </div>
             </div>
         </div>
 
         <div class="col-12 col-md-6 col-xl-3">
             <div class="dashboard-card">
                 <div class="dashboard-label">Clientes</div>
-                <div class="dashboard-value">0</div>
+                <div class="dashboard-value">@CantidadClientes</div>
                 <div class="dashboard-detail">Registrados</div>
             </div>
         </div>
@@ -55,8 +73,46 @@
                     Últimos movimientos
                 </div>
 
-                <div class="panel-body text-secondary">
-                    Todavía no hay movimientos para mostrar.
+                <div class="panel-body">
+                    @if (UltimosMovimientos.Count == 0)
+                    {
+                        <div class="text-secondary">
+                            Todavía no hay movimientos para mostrar.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Hora</th>
+                                        <th>Detalle</th>
+                                        <th>Tipo</th>
+                                        <th class="text-end">Monto</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    @foreach (var mov in UltimosMovimientos)
+                                    {
+                                        <tr>
+                                            <td>@mov.Fecha.ToString("HH:mm")</td>
+                                            <td>@mov.Descripcion</td>
+                                            <td>
+                                                <span class="badge @ObtenerBadgeMovimiento(mov.Tipo)">
+                                                    @mov.Tipo
+                                                </span>
+                                            </td>
+                                            <td class="text-end fw-bold @ObtenerClaseMonto(mov.Tipo)">
+                                                @ObtenerSignoMonto(mov.Tipo)$@mov.Monto.ToString("N2")
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
                 </div>
             </div>
         </div>
@@ -67,8 +123,22 @@
                     Alertas
                 </div>
 
-                <div class="panel-body text-secondary">
-                    No hay alertas pendientes.
+                <div class="panel-body">
+                    @if (Alertas.Count == 0)
+                    {
+                        <div class="text-secondary">
+                            No hay alertas pendientes.
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var alerta in Alertas)
+                        {
+                            <div class="alert alert-warning mb-2">
+                                @alerta
+                            </div>
+                        }
+                    }
                 </div>
             </div>
         </div>
@@ -129,3 +199,151 @@
         padding: 1.25rem;
     }
 </style>
+
+@code {
+    private decimal TotalVentasHoy = 0;
+    private int CantidadComprobantesHoy = 0;
+
+    private CajaViewModel? CajaAbierta;
+    private decimal TotalCaja = 0;
+
+    private int CantidadProductos = 0;
+    private int CantidadStockBajo = 0;
+
+    private int CantidadClientes = 0;
+
+    private List<CajaMovimientoViewModel> UltimosMovimientos = new();
+    private List<string> Alertas = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDashboard();
+    }
+
+    private async Task CargarDashboard()
+    {
+        Alertas.Clear();
+
+        var facturas = await FacturaService.ObtenerTodasAsync();
+
+        var facturasHoyTodas = facturas
+            .Where(x => x.Fecha.Date == DateTime.Today)
+            .ToList();
+
+        var facturasHoyValidas = facturasHoyTodas
+            .Where(x => x.Estado != EstadoFactura.Anulada)
+            .ToList();
+
+        TotalVentasHoy = facturasHoyValidas.Sum(x => x.Total);
+        CantidadComprobantesHoy = facturasHoyValidas.Count;
+
+        var anuladasHoy = facturasHoyTodas
+            .Count(x => x.Estado == EstadoFactura.Anulada);
+
+        if (anuladasHoy > 0)
+        {
+            Alertas.Add($"{anuladasHoy} comprobante(s) anulado(s) hoy.");
+        }
+
+        CajaAbierta = await CajaService.ObtenerCajaAbiertaAsync();
+
+        if (CajaAbierta != null)
+        {
+            TotalCaja = CajaAbierta.FondoInicial
+                + CajaAbierta.TotalIngresos
+                + CajaAbierta.TotalVentas
+                - CajaAbierta.TotalRetiros;
+
+            UltimosMovimientos = await CajaService.ObtenerMovimientosAsync(CajaAbierta.IdCaja);
+
+            UltimosMovimientos = UltimosMovimientos
+                .OrderByDescending(x => x.Fecha)
+                .Take(8)
+                .ToList();
+
+            if (CajaAbierta.FechaApertura.Date < DateTime.Today)
+            {
+                Alertas.Add("La caja abierta corresponde a un día anterior. Revisar si quedó sin cerrar.");
+            }
+        }
+        else
+        {
+            TotalCaja = 0;
+            UltimosMovimientos.Clear();
+
+            Alertas.Add("No hay caja abierta.");
+        }
+
+        var cajasCerradas = await CajaService.ObtenerCajasCerradasAsync();
+
+        var ultimaCajaCerrada = cajasCerradas
+            .OrderByDescending(x => x.FechaCierre)
+            .FirstOrDefault();
+
+        if (ultimaCajaCerrada != null)
+        {
+            var esperadoUltimoCierre = ultimaCajaCerrada.FondoInicial
+                + ultimaCajaCerrada.TotalIngresos
+                + ultimaCajaCerrada.TotalVentas
+                - ultimaCajaCerrada.TotalRetiros;
+
+            var diferenciaUltimoCierre = ultimaCajaCerrada.TotalFinal - esperadoUltimoCierre;
+
+            if (diferenciaUltimoCierre != 0)
+            {
+                Alertas.Add($"La última caja cerrada tuvo una diferencia de ${diferenciaUltimoCierre:N2}.");
+            }
+        }
+
+        var productos = await ProductoService.ObtenerTodosAsync();
+
+        CantidadProductos = productos.Count;
+
+        CantidadStockBajo = productos.Count(x =>
+            x.LlevaStock
+            && x.StockMinimo > 0
+            && x.StockActual <= x.StockMinimo
+        );
+
+        if (CantidadStockBajo > 0)
+        {
+            Alertas.Add($"{CantidadStockBajo} producto(s) con stock bajo.");
+        }
+
+        var clientes = await ClienteService.ObtenerTodosAsync();
+
+        CantidadClientes = clientes.Count;
+    }
+
+    private string ObtenerBadgeMovimiento(TipoMovimientoCaja tipo)
+    {
+        return tipo switch
+        {
+            TipoMovimientoCaja.Venta => "bg-success",
+            TipoMovimientoCaja.Ingreso => "bg-info",
+            TipoMovimientoCaja.Retiro => "bg-warning text-dark",
+            TipoMovimientoCaja.AnulacionVenta => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string ObtenerClaseMonto(TipoMovimientoCaja tipo)
+    {
+        return tipo switch
+        {
+            TipoMovimientoCaja.Retiro => "text-danger",
+            TipoMovimientoCaja.AnulacionVenta => "text-danger",
+            _ => "text-success"
+        };
+    }
+
+    private string ObtenerSignoMonto(TipoMovimientoCaja tipo)
+    {
+        return tipo switch
+        {
+            TipoMovimientoCaja.Retiro => "-",
+            TipoMovimientoCaja.AnulacionVenta => "-",
+            _ => "+"
+        };
+    }
+}

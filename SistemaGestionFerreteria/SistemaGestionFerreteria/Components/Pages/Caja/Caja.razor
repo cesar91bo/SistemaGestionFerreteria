@@ -62,11 +62,18 @@
         }
 
         <div class="d-flex gap-2">
-            <button class="btn btn-success"
-                    disabled="@(CajaAbierta != null)"
-                    @onclick="AbrirCaja">
-                Abrir caja
-            </button>
+            @if (CajaAbierta != null)
+            {
+                <button class="btn btn-success" disabled>
+                    Caja abierta
+                </button>
+            }
+            else
+            {
+                <button class="btn btn-secondary" disabled>
+                    Caja sin abrir
+                </button>
+            }
 
             <button class="btn btn-outline-light"
                     disabled="@(CajaAbierta == null)"
@@ -193,9 +200,9 @@
                 }
 
                 <div class="card-body p-0">
-                    <div class="table-responsive caja-table-container">
+                    <div class="table-responsive caja-table-container" style="max-height: 360px; overflow-y: auto;">
                         <table class="table table-dark table-hover align-middle mb-0">
-                            <thead>
+                            <thead class="sticky-top">
                                 <tr>
                                     <th>Hora</th>
                                     <th>Detalle</th>
@@ -337,6 +344,243 @@
 
     </div>
 
+        <div class="card card-dark border-0 shadow-sm mt-4">
+            <div class="card-header bg-transparent border-bottom border-secondary">
+                <h5 class="text-white mb-0">Historial de cajas cerradas</h5>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+                    <table class="table table-dark table-hover align-middle mb-0">
+                        <thead class="sticky-top">
+                            <tr>
+                                <th>Apertura</th>
+                                <th>Cierre</th>
+                                <th class="text-end">Fondo inicial</th>
+                                <th class="text-end">Ventas</th>
+                                <th class="text-end">Ingresos</th>
+                                <th class="text-end">Retiros</th>
+                                <th class="text-end">Esperado</th>
+                                <th class="text-end">Contado</th>
+                                <th class="text-end">Diferencia</th>
+                                <th class="text-end">Acciones</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @if (CajasCerradas.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="10" class="text-center text-muted py-4">
+                                        No hay cajas cerradas para mostrar
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var caja in CajasCerradas)
+                                {
+                                    var totalEsperado = caja.FondoInicial
+                                        + caja.TotalIngresos
+                                        + caja.TotalVentas
+                                        - caja.TotalRetiros;
+
+                                    var diferencia = caja.TotalFinal - totalEsperado;
+
+                                    <tr>
+                                        <td>@caja.FechaApertura.ToString("dd/MM/yyyy HH:mm")</td>
+
+                                        <td>
+                                            @(caja.FechaCierre.HasValue
+                                                ? caja.FechaCierre.Value.ToString("dd/MM/yyyy HH:mm")
+                                                : "-")
+                                        </td>
+
+                                        <td class="text-end">
+                                            $@caja.FondoInicial.ToString("N2")
+                                        </td>
+
+                                        <td class="text-end text-success">
+                                            $@caja.TotalVentas.ToString("N2")
+                                        </td>
+
+                                        <td class="text-end text-info">
+                                            $@caja.TotalIngresos.ToString("N2")
+                                        </td>
+
+                                        <td class="text-end text-danger">
+                                            $@caja.TotalRetiros.ToString("N2")
+                                        </td>
+
+                                        <td class="text-end fw-bold">
+                                            $@totalEsperado.ToString("N2")
+                                        </td>
+
+                                        <td class="text-end fw-bold">
+                                            $@caja.TotalFinal.ToString("N2")
+                                        </td>
+
+                                        <td class="text-end fw-bold @(diferencia == 0 ? "text-secondary" : diferencia > 0 ? "text-success" : "text-danger")">
+                                            $@diferencia.ToString("N2")
+                                        </td>
+
+                                        <td class="text-end">
+                                            <button class="btn btn-outline-info btn-sm"
+                                                    @onclick="() => VerDetalleCaja(caja)">
+                                                Ver
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        @if (CajaDetalleSeleccionada != null)
+        {
+            var totalEsperadoDetalle = CajaDetalleSeleccionada.FondoInicial
+                + CajaDetalleSeleccionada.TotalIngresos
+                + CajaDetalleSeleccionada.TotalVentas
+                - CajaDetalleSeleccionada.TotalRetiros;
+
+            var diferenciaDetalle = CajaDetalleSeleccionada.TotalFinal - totalEsperadoDetalle;
+
+            <div class="card card-dark border-0 shadow-sm mt-4">
+                <div class="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="text-white mb-0">
+                            Detalle de caja cerrada
+                        </h5>
+
+                        <div class="text-muted small">
+                            Apertura: @CajaDetalleSeleccionada.FechaApertura.ToString("dd/MM/yyyy HH:mm")
+                            -
+                            Cierre: @(CajaDetalleSeleccionada.FechaCierre.HasValue
+                                                    ? CajaDetalleSeleccionada.FechaCierre.Value.ToString("dd/MM/yyyy HH:mm")
+                                                : "-")
+                        </div>
+                    </div>
+
+                    <button class="btn btn-outline-light btn-sm"
+                            @onclick="CerrarDetalleCaja">
+                        Cerrar detalle
+                    </button>
+                </div>
+
+                <div class="card-body">
+
+                    <div class="row g-3 mb-4">
+
+                        <div class="col-md-3">
+                            <div class="text-muted">Fondo inicial</div>
+                            <div class="fs-5 fw-bold text-white">
+                                $@CajaDetalleSeleccionada.FondoInicial.ToString("N2")
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <div class="text-muted">Ventas</div>
+                            <div class="fs-5 fw-bold text-success">
+                                $@CajaDetalleSeleccionada.TotalVentas.ToString("N2")
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <div class="text-muted">Ingresos</div>
+                            <div class="fs-5 fw-bold text-info">
+                                $@CajaDetalleSeleccionada.TotalIngresos.ToString("N2")
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <div class="text-muted">Retiros</div>
+                            <div class="fs-5 fw-bold text-danger">
+                                $@CajaDetalleSeleccionada.TotalRetiros.ToString("N2")
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <div class="text-muted">Esperado</div>
+                            <div class="fs-5 fw-bold text-white">
+                                $@totalEsperadoDetalle.ToString("N2")
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <div class="text-muted">Contado</div>
+                            <div class="fs-5 fw-bold text-white">
+                                $@CajaDetalleSeleccionada.TotalFinal.ToString("N2")
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <div class="text-muted">Diferencia</div>
+                            <div class="fs-5 fw-bold @(diferenciaDetalle == 0 ? "text-secondary" : diferenciaDetalle > 0 ? "text-success" : "text-danger")">
+                                $@diferenciaDetalle.ToString("N2")
+                            </div>
+                        </div>
+
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(CajaDetalleSeleccionada.ObservacionCierre))
+                    {
+                        <div class="alert alert-secondary">
+                            <strong>Observación de cierre:</strong>
+                            @CajaDetalleSeleccionada.ObservacionCierre
+                        </div>
+                    }
+
+                    <div class="table-responsive" style="max-height: 360px; overflow-y: auto;">
+                        <table class="table table-dark table-hover align-middle mb-0">
+                            <thead class="sticky-top">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Detalle</th>
+                                    <th>Tipo</th>
+                                    <th class="text-end">Monto</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                @if (MovimientosCajaDetalle.Count == 0)
+                                {
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-4">
+                                            No hay movimientos para esta caja
+                                        </td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var mov in MovimientosCajaDetalle)
+                                    {
+                                        <tr>
+                                            <td>@mov.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+
+                                            <td>@mov.Descripcion</td>
+
+                                            <td>
+                                                <span class="badge @ObtenerBadgeMovimiento(mov.Tipo)">
+                                                    @mov.Tipo
+                                                </span>
+                                            </td>
+
+                                            <td class="text-end fw-bold @ObtenerClaseMonto(mov.Tipo)">
+                                                @ObtenerSignoMonto(mov.Tipo)$@mov.Monto.ToString("N2")
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        }
 </div>
 
 @code {
@@ -371,6 +615,10 @@
     private decimal MontoMovimiento = 0;
     private string DescripcionMovimiento = string.Empty;
 
+    private List<CajaViewModel> CajasCerradas = new();
+    private CajaViewModel? CajaDetalleSeleccionada;
+    private List<CajaMovimientoViewModel> MovimientosCajaDetalle = new();
+
     protected override async Task OnInitializedAsync()
     {
         await CargarCaja();
@@ -379,6 +627,7 @@
     private async Task CargarCaja()
     {
         CajaAbierta = await CajaService.ObtenerCajaAbiertaAsync();
+        CajasCerradas = await CajaService.ObtenerCajasCerradasAsync();
 
         if (CajaAbierta != null)
         {
@@ -401,14 +650,25 @@
         }
     }
 
+    private async Task VerDetalleCaja(CajaViewModel caja)
+    {
+        CajaDetalleSeleccionada = caja;
+        MovimientosCajaDetalle = await CajaService.ObtenerMovimientosAsync(caja.IdCaja);
+    }
+
+    private void CerrarDetalleCaja()
+    {
+        CajaDetalleSeleccionada = null;
+        MovimientosCajaDetalle.Clear();
+    }
+
     private async Task AbrirCaja()
     {
         try
         {
             await CajaService.AbrirCajaAsync(AbrirModelo);
 
-            Mensaje = "Caja abierta correctamente.";
-            ClaseMensaje = "alert-success";
+            await MostrarMensajeTemporal("Caja abierta correctamente.", "alert-success");
 
             await CargarCaja();
         }
@@ -447,10 +707,9 @@
 
             await CajaService.CerrarCajaAsync(CerrarModelo);
 
-            Mensaje = "Caja cerrada correctamente.";
-            ClaseMensaje = "alert-success";
-
             await CargarCaja();
+
+            await MostrarMensajeTemporal("Caja cerrada correctamente.", "alert-success");
         }
         catch (Exception ex)
         {
@@ -531,6 +790,8 @@
             if (string.IsNullOrWhiteSpace(DescripcionMovimiento))
                 throw new InvalidOperationException("La descripción es obligatoria.");
 
+            var mensajeOk = string.Empty;
+
             if (MostrarIngreso)
             {
                 await CajaService.RegistrarIngresoAsync(
@@ -539,7 +800,7 @@
                     DescripcionMovimiento.Trim()
                 );
 
-                Mensaje = "Ingreso registrado correctamente.";
+                mensajeOk = "Ingreso registrado correctamente.";
             }
             else if (MostrarRetiro)
             {
@@ -549,19 +810,33 @@
                     DescripcionMovimiento.Trim()
                 );
 
-                Mensaje = "Retiro registrado correctamente.";
+                mensajeOk = "Retiro registrado correctamente.";
             }
-
-            ClaseMensaje = "alert-success";
 
             CancelarMovimientoManual();
 
             await CargarCaja();
+
+            await MostrarMensajeTemporal(mensajeOk, "alert-success");
         }
         catch (Exception ex)
         {
-            Mensaje = ex.Message;
-            ClaseMensaje = "alert-danger";
+            await MostrarMensajeTemporal(ex.Message, "alert-danger");
         }
     }
+
+    private async Task MostrarMensajeTemporal(string mensaje, string clase)
+    {
+        Mensaje = mensaje;
+        ClaseMensaje = clase;
+
+        StateHasChanged();
+
+        await Task.Delay(3000);
+
+        Mensaje = string.Empty;
+
+        StateHasChanged();
+    }
+
 }
