@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SistemaGestionFerreteria.Application.Features.FacturacionElectronica.Models;
 using SistemaGestionFerreteria.Application.Interfaces;
 using SistemaGestionFerreteria.Components;
 using SistemaGestionFerreteria.Infrastructure.Persistence;
@@ -25,6 +26,7 @@ builder.Services.AddScoped<IParametroService, ParametroService>();
 builder.Services.AddScoped<IClienteService, ClienteService>();
 builder.Services.AddScoped<IFacturaService, FacturaService>();
 builder.Services.AddScoped<ICajaService, CajaService>();
+builder.Services.Configure<AfipOptions>(builder.Configuration.GetSection("Afip"));
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();

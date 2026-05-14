@@ -1,58 +1,117 @@
 ﻿@inherits LayoutComponentBase
 
-<div class="app-shell">
+<div class="app-shell @(SidebarContraido ? "sidebar-collapsed" : "")">
     <aside class="sidebar">
-        <div class="sidebar-brand">
-            MIL-DAN
+        <div class="sidebar-header">
+            @if (!SidebarContraido)
+            {
+                <NavLink href="/" Match="NavLinkMatch.All" class="sidebar-brand">
+                    <span class="brand-main">MIL</span><span class="brand-accent">-DAN</span>
+                </NavLink>
+            }
+            else
+            {
+                <NavLink href="/" Match="NavLinkMatch.All" class="sidebar-brand-collapsed">
+                    MD
+                </NavLink>
+            }
+
+            <button class="sidebar-toggle"
+                    title="Expandir / contraer menú"
+                    @onclick="ToggleSidebar">
+                ☰
+            </button>
         </div>
 
         <nav class="sidebar-nav">
+
             <NavLink href="/" Match="NavLinkMatch.All" class="nav-item">
-                Dashboard
+                <span class="nav-icon">🏠</span>
+
+                @if (!SidebarContraido)
+                {
+                    <span class="nav-text">Dashboard</span>
+                }
             </NavLink>
+
             <div class="nav-group">
 
                 <div class="nav-item nav-parent"
+                     title="Facturación"
                      @onclick="ToggleFacturacion">
 
-                    Facturación
+                    <div class="nav-parent-content">
+                        <span class="nav-icon">🧾</span>
 
-                    <span class="arrow @(FacturacionAbierto ? "open" : "")">
-                        ▾
-                    </span>
+                        @if (!SidebarContraido)
+                        {
+                            <span class="nav-text">Facturación</span>
+                        }
+                    </div>
+
+                    @if (!SidebarContraido)
+                    {
+                        <span class="arrow @(FacturacionAbierto ? "open" : "")">
+                            ▾
+                        </span>
+                    }
                 </div>
 
-                @if (FacturacionAbierto)
+                @if (FacturacionAbierto && !SidebarContraido)
                 {
                     <NavLink href="/facturacion"
                              Match="NavLinkMatch.All"
                              class="nav-item sub-item">
-                        Nueva venta
+                        <span class="nav-icon">🛒</span>
+                        <span class="nav-text">Nueva venta</span>
                     </NavLink>
 
                     <NavLink href="/facturacion/listado"
                              Match="NavLinkMatch.All"
                              class="nav-item sub-item">
-                        Comprobantes
+                        <span class="nav-icon">📄</span>
+                        <span class="nav-text">Comprobantes</span>
                     </NavLink>
                 }
 
             </div>
+
             <NavLink href="/caja"
                      Match="NavLinkMatch.All"
                      class="nav-item">
-                Caja
+                <span class="nav-icon">💵</span>
+
+                @if (!SidebarContraido)
+                {
+                    <span class="nav-text">Caja</span>
+                }
             </NavLink>
+
             <NavLink href="/productos" class="nav-item">
-                Productos
+                <span class="nav-icon">🔩</span>
+
+                @if (!SidebarContraido)
+                {
+                    <span class="nav-text">Productos</span>
+                }
             </NavLink>
 
             <NavLink href="/clientes" class="nav-item">
-                Clientes
+                <span class="nav-icon">👥</span>
+
+                @if (!SidebarContraido)
+                {
+                    <span class="nav-text">Clientes</span>
+                }
             </NavLink>
 
             <NavLink href="/configuracion" class="nav-item">
-                Configuración
+                <span class="nav-icon">⚙️</span>
+
+                @if (!SidebarContraido)
+                {
+                    <span class="nav-text">Configuración</span>
+                }
             </NavLink>
         </nav>
     </aside>
@@ -62,10 +121,11 @@
     </main>
 </div>
 
-@code{
+@code {
     [Inject] NavigationManager Nav { get; set; } = default!;
 
     private bool FacturacionAbierto = false;
+    private bool SidebarContraido = false;
 
     protected override void OnInitialized()
     {
@@ -74,9 +134,31 @@
             FacturacionAbierto = true;
         }
     }
+
     private void ToggleFacturacion()
     {
+        if (SidebarContraido)
+        {
+            SidebarContraido = false;
+            FacturacionAbierto = true;
+            return;
+        }
+
         FacturacionAbierto = !FacturacionAbierto;
+    }
+
+    private void ToggleSidebar()
+    {
+        SidebarContraido = !SidebarContraido;
+
+        if (SidebarContraido)
+        {
+            FacturacionAbierto = false;
+        }
+        else if (Nav.Uri.Contains("facturacion"))
+        {
+            FacturacionAbierto = true;
+        }
     }
 }
 
@@ -95,14 +177,57 @@
         display: flex;
         flex-direction: column;
         padding: 1rem;
+        transition: width 0.2s ease, min-width 0.2s ease;
+    }
+
+    .sidebar-collapsed .sidebar {
+        width: 76px;
+        min-width: 76px;
+        padding: 1rem 0.6rem;
+    }
+
+    .sidebar-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+        gap: 0.5rem;
+    }
+
+    .sidebar-collapsed .sidebar-header {
+        flex-direction: column;
+        justify-content: center;
     }
 
     .sidebar-brand {
         color: white;
         font-size: 1.6rem;
         font-weight: 700;
-        margin-bottom: 1.5rem;
+        white-space: nowrap;
     }
+
+    .sidebar-brand-collapsed {
+        color: white;
+        font-size: 1rem;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .sidebar-toggle {
+        width: 38px;
+        height: 38px;
+        border: none;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.08);
+        color: white;
+        font-size: 1.2rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+        .sidebar-toggle:hover {
+            background: rgba(255,255,255,0.16);
+        }
 
     .sidebar-nav {
         display: flex;
@@ -116,6 +241,10 @@
         padding: 0.85rem 1rem;
         border-radius: 12px;
         transition: all 0.15s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        min-height: 48px;
     }
 
         .nav-item:hover {
@@ -129,24 +258,35 @@
             font-weight: 600;
         }
 
+    .sidebar-collapsed .nav-item {
+        justify-content: center;
+        padding: 0.85rem 0.4rem;
+        gap: 0;
+    }
+
+    .nav-icon {
+        width: 24px;
+        min-width: 24px;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 1.15rem;
+    }
+
+    .nav-text {
+        white-space: nowrap;
+    }
+
     .main-content {
         flex: 1;
         padding: 1.5rem;
         min-width: 0;
+        transition: all 0.2s ease;
     }
 
     .nav-group {
         display: flex;
         flex-direction: column;
-    }
-
-    .nav-group-title {
-        color: #9ca3af;
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        margin: 0.8rem 0 0.2rem;
-        padding-left: 0.5rem;
-        letter-spacing: 0.05em;
     }
 
     .sub-item {
@@ -161,6 +301,12 @@
         cursor: pointer;
     }
 
+    .nav-parent-content {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
     .arrow {
         font-size: 0.7rem;
         transition: transform 0.2s;
@@ -170,10 +316,74 @@
             transform: rotate(180deg);
         }
 
-
     .sub-item.active {
         background: rgba(255,255,255,0.08);
         color: white;
         font-weight: 500;
+    }
+
+    .sidebar-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+        gap: 0.75rem;
+    }
+
+    .sidebar-collapsed .sidebar-header {
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.75rem;
+    }
+
+    .sidebar-brand {
+        color: white;
+        font-size: 1.6rem;
+        font-weight: 800;
+        white-space: nowrap;
+        letter-spacing: 0.03em;
+        line-height: 1;
+    }
+
+    .brand-main {
+        color: #ffffff;
+    }
+
+    .brand-accent {
+        color: #f97316;
+    }
+
+    .sidebar-brand-collapsed {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: rgba(249,115,22,0.14);
+        color: #f97316;
+        border: 1px solid rgba(249,115,22,0.35);
+        font-size: 0.95rem;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        letter-spacing: 0.05em;
+    }
+
+    .sidebar-brand {
+        color: white;
+        font-size: 1.6rem;
+        font-weight: 800;
+        white-space: nowrap;
+        letter-spacing: 0.03em;
+        line-height: 1;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .sidebar-brand:hover {
+            opacity: 0.9;
+    }
+
+    .sidebar-brand-collapsed {
+        text-decoration: none;
     }
 </style>

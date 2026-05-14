@@ -79,7 +79,6 @@ textarea {
     color: var(--color-text) !important;
     border: 1px solid #3d4757 !important;
 }
-}
 
     .form-control::placeholder {
         color: #94a3b8;
@@ -411,4 +410,38 @@ hr {
   position: sticky;
   top: 0;
   z-index: 5;
+}
+
+.productos-lista-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.productos-lista-acciones {
+    display: flex;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+
+    .productos-lista-acciones .btn {
+        white-space: nowrap;
+        min-width: 145px;
+    }
+
+@media (max-width: 1400px) {
+    .productos-lista-header {
+        align-items: flex-start;
+    }
+
+    .productos-lista-acciones {
+        width: 100%;
+    }
+
+        .productos-lista-acciones .btn {
+            flex: 1;
+            min-width: 0;
+        }
 }
