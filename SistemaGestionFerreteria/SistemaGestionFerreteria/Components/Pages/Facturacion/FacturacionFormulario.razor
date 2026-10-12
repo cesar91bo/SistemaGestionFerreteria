@@ -10,6 +10,7 @@
 @using SistemaGestionFerreteria.Application.Helpers
 @rendermode InteractiveServer
 @inject NavigationManager Navigation
+@inject Microsoft.Extensions.Options.IOptions<SistemaGestionFerreteria.Application.Features.FacturacionElectronica.Models.AfipOptions> AfipConfiguration
 
 <div class="container-fluid py-4 facturacion-page">
 
@@ -48,9 +49,9 @@
                 </button>
 
                 <button class="btn btn-success px-4"
-                        disabled="@(!PuedeGuardar || !HayCajaAbierta)"
+                        disabled="@(!PuedeGuardar || Guardando || (!EsHomologacion && !HayCajaAbierta))"
                         @onclick="Guardar">
-                    Guardar
+                    @(Guardando ? "Procesando..." : "Guardar")
                 </button>
 
                 <button class="btn btn-outline-info"
@@ -62,6 +63,40 @@
 
         </div>
     </div>
+
+    @if (EsHomologacion)
+    {
+        <div class="alert alert-warning">Homologación: los comprobantes son de prueba y no afectan la caja real. Punto de venta @AfipConfiguration.Value.PuntoVenta.</div>
+    }
+    else
+    {
+        <div class="alert alert-info">Producción: se emiten comprobantes reales en ARCA. Punto de venta @AfipConfiguration.Value.PuntoVenta.</div>
+    }
+    @if (EsModoLectura && Factura.EnviarAfip)
+    {
+        <div class="alert @(Factura.EnviadaAfip ? "alert-success" : "alert-warning")">
+            Estado ARCA: @(Factura.EnviadaAfip ? "Autorizado" : Factura.ResultadoAfip == "R" ? "Rechazado" : "Pendiente de confirmar")
+            @if (Factura.EnviadaAfip) { <span> — CAE: @Factura.Cae. Vencimiento: @Factura.FechaVencimientoCae?.ToString("dd/MM/yyyy").</span> }
+            @if (!string.IsNullOrWhiteSpace(Factura.ErrorAfip)) { <div>@Factura.ErrorAfip</div> }
+            @if (!Factura.EnviadaAfip && Factura.Estado != EstadoFactura.Anulada)
+            {
+                <button class="btn btn-warning mt-2" disabled="@Guardando" @onclick="Reintentar">Consultar / reintentar ARCA</button>
+            }
+        </div>
+    }
+    @if (Factura.TipoComprobante == TipoComprobante.NotaCredito && !EsModoLectura)
+    {
+        <div class="mb-3">
+            <label class="form-label">Factura autorizada que se acredita</label>
+            <select class="form-select" @bind="Factura.IdFacturaAsociada">
+                <option value="">Seleccione factura A/B del cliente</option>
+                @foreach (var original in FacturasAsociables.Where(x => x.IdCliente == Factura.IdCliente))
+                {
+                    <option value="@original.IdFactura">@original.TipoComprobante @original.PuntoVenta.ToString("D5")-@original.NumeroComprobante.ToString("D8") — $@original.Total.ToString("N2")</option>
+                }
+            </select>
+        </div>
+    }
 
     @if (!EsModoLectura)
     {
@@ -96,7 +131,7 @@
 
                                 <option value="">Seleccionar cliente...</option>
 
-                                @foreach (var c in Clientes)
+                                @foreach (var c in Clientes.Where(c => c.Activo || (EsModoLectura && c.IdCliente == Factura.IdCliente)))
                                 {
                                     <option value="@c.IdCliente">
                                         @c.Nombre
@@ -110,9 +145,11 @@
                             <label class="form-label">Comprobante</label>
                             <select class="form-select"
                                     @bind="Factura.TipoComprobante"
+                                    @bind:after="CambiarTipo"
                                     disabled="@EsModoLectura">
                                 @foreach (TipoComprobante item in Enum.GetValues(typeof(TipoComprobante)))
                                 {
+                                    if (item == TipoComprobante.FacturaC && !EsModoLectura) { continue; }
                                     <option value="@item">
                                         @item.GetDisplayName()
                                     </option>
@@ -142,10 +179,15 @@
                                 <input class="form-check-input"
                                        type="checkbox"
                                        id="chkAfip"
-                                       disabled="@EsModoLectura" />
+                                       @bind="Factura.EnviarAfip"
+                                       disabled="@(EsModoLectura || Factura.TipoComprobante is not (TipoComprobante.FacturaA or TipoComprobante.FacturaB))" />
                                 <label class="form-check-label" for="chkAfip">
-                                    Enviar a AFIP
+                                    Autorizar en ARCA
                                 </label>
+                                @if (!Factura.EnviarAfip && Factura.TipoComprobante is TipoComprobante.FacturaA or TipoComprobante.FacturaB)
+                                {
+                                    <div class="small text-muted">Se guardará como Factura X, sin autorización fiscal.</div>
+                                }
                             </div>
                         </div>
 
@@ -318,12 +360,13 @@
 
                                             <td>
                                                 <select class="form-select form-select-sm"
-                                                        value="@item.PorcentajeIva"
+                                                        value="@item.PorcentajeIva.ToString(System.Globalization.CultureInfo.InvariantCulture)"
                                                         @onchange="(e => OnIvaChange(e, item))"
                                                         disabled="@EsModoLectura">
                                                     <option value="21">21%</option>
                                                     <option value="10.5">10.5%</option>
-                                                    <option value="0">0%</option>
+                                                    <option value="27">27%</option>
+                                                    <option value="0">Exento</option>
                                                 </select>
                                             </td>
 
@@ -377,6 +420,14 @@
                         <span class="text-muted">IVA 10.5%</span>
                         <span>$@Factura.TotalIva105.ToString("N2")</span>
                     </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">IVA 27%</span>
+                        <span>$@Factura.TotalIva27.ToString("N2")</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Exento</span>
+                        <span>$@Factura.TotalExento.ToString("N2")</span>
+                    </div>
 
                     <hr class="border-secondary" />
 
@@ -414,21 +465,24 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Monto recibido</label>
+                        <label class="form-label">@(EsEfectivo && (!EsModoLectura || Factura.MontoRecibido.HasValue) ? "Monto recibido" : "Monto aplicado")</label>
                         <input class="form-control"
                                type="number"
                                step="0.01"
                                @bind="MontoRecibido"
                                @bind:event="oninput"
-                               disabled="@EsModoLectura" />
+                               disabled="@(EsModoLectura || !EsEfectivo)" />
                     </div>
 
+                    @if (EsEfectivo && (!EsModoLectura || Factura.MontoRecibido.HasValue))
+                    {
                     <div class="alert alert-secondary mb-0">
                         Vuelto:
                         <strong class="@(Vuelto < 0 ? "text-danger" : "text-success")">
                             $@Vuelto.ToString("N2")
                         </strong>
                     </div>
+                    }
 
                     @if (Factura.Total > 0)
                     {
@@ -450,7 +504,7 @@
                             </div>
 
                             <div class="d-flex justify-content-between text-light">
-                                <span>Recibido</span>
+                                <span>@(EsEfectivo && (!EsModoLectura || Factura.MontoRecibido.HasValue) ? "Recibido" : "Monto aplicado")</span>
                                 <strong>$@MontoRecibido.ToString("N2")</strong>
                             </div>
 
@@ -460,7 +514,15 @@
 
                                 <span class="fw-bold text-white">Resultado</span>
 
-                                @if (Vuelto < 0)
+                                @if (FormaPagoSeleccionada == FormaPago.CuentaCorriente)
+                                {
+                                    <span class="text-info fw-bold">A cuenta corriente</span>
+                                }
+                                else if (!EsEfectivo || (EsModoLectura && !Factura.MontoRecibido.HasValue))
+                                {
+                                    <span class="text-info fw-bold">@FormaPagoSeleccionada.GetDisplayName() registrado</span>
+                                }
+                                else if (Vuelto < 0)
                                 {
                                     <span class="text-danger fw-bold fs-5">
                                         Falta $@Math.Abs(Vuelto).ToString("N2")
@@ -508,6 +570,10 @@
     #region 🔹 Propiedades / Estado
 
     private List<ClienteViewModel> Clientes = new();
+    private int? IdClienteEventual => Clientes.FirstOrDefault(c => c.Activo &&
+        string.Equals(c.Nombre.Trim(), "Cliente Eventual", StringComparison.OrdinalIgnoreCase) &&
+        c.RegimenImpositivo == TipoRegimenImpositivo.ConsumidorFinal &&
+        string.IsNullOrWhiteSpace(c.Cuit) && string.IsNullOrWhiteSpace(c.Documento))?.IdCliente;
     private List<ProductoViewModel> Productos = new();
 
     private ElementReference InputBusquedaProducto;
@@ -518,11 +584,26 @@
 
     private decimal MontoRecibido = 0;
 
-    private decimal Vuelto => MontoRecibido - Factura.Total;
+    private bool EsEfectivo => FormaPagoSeleccionada == FormaPago.Efectivo;
+    private decimal Vuelto => EsEfectivo ? MontoRecibido - Factura.Total : 0;
+    private void RestaurarPago()
+    {
+        FormaPagoSeleccionada = Factura.Pagos.FirstOrDefault()?.FormaPago ?? FormaPago.Efectivo;
+        MontoRecibido = EsEfectivo ? Factura.MontoRecibido ?? Factura.Total :
+            FormaPagoSeleccionada == FormaPago.CuentaCorriente ? 0 : Factura.Pagos.Sum(x => x.Monto);
+    }
 
     private string UltimaBusquedaProcesada = "";
 
     private bool HayCajaAbierta = false;
+    private bool Guardando;
+    private bool EsHomologacion => string.Equals(AfipConfiguration.Value.Ambiente, "Homologacion", StringComparison.OrdinalIgnoreCase);
+    private List<FacturaViewModel> FacturasAsociables = new();
+    private void CambiarTipo()
+    {
+        Factura.EnviarAfip = Factura.TipoComprobante is TipoComprobante.FacturaA or TipoComprobante.FacturaB or TipoComprobante.NotaCredito;
+        Factura.IdFacturaAsociada = null;
+    }
 
     private bool PuedeGuardar =>
     Factura.Detalles.Any()
@@ -531,11 +612,11 @@
         !string.IsNullOrWhiteSpace(d.Descripcion)
         && d.Cantidad > 0
         && d.PrecioUnitario > 0)
-    && MontoRecibido >= Factura.Total;
+    && (!EsEfectivo || MontoRecibido >= Factura.Total);
 
     private FacturaViewModel Factura = new()
     {
-        IdCliente = 1,
+        IdCliente = null,
         Fecha = DateTime.Today,
         TipoComprobante = TipoComprobante.FacturaB,
         Detalles = new List<FacturaDetalleViewModel>(),
@@ -545,7 +626,7 @@
     [Parameter]
     public int? IdFactura { get; set; }
 
-    private bool EsModoLectura => IdFactura.HasValue;
+    private bool EsModoLectura => IdFactura.HasValue || Factura.IdFactura > 0;
 
     #endregion
 
@@ -565,13 +646,22 @@
             if (factura is not null)
             {
                 Factura = factura;
-                Recalcular();
+                RestaurarPago();
             }
 
             return;
         }
 
-        Factura.IdCliente = 1;
+        Factura.IdCliente = IdClienteEventual;
+        Factura.PuntoVenta = AfipConfiguration.Value.PuntoVenta;
+        Factura.Fecha = SistemaGestionFerreteria.Infrastructure.Services.FacturacionElectronica.AfipSolicitudFactory.FechaArgentina();
+        foreach (var candidate in (await FacturaService.ObtenerTodasAsync()).Where(x => x.EnviadaAfip &&
+            x.AmbienteAfip == (EsHomologacion ? "Homologacion" : "Produccion") &&
+            x.TipoComprobante is TipoComprobante.FacturaA or TipoComprobante.FacturaB))
+        {
+            var original = await FacturaService.ObtenerPorIdAsync(candidate.IdFactura);
+            if (original is not null) FacturasAsociables.Add(original);
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -594,7 +684,7 @@
 
     private void OnIvaChange(ChangeEventArgs e, FacturaDetalleViewModel item)
     {
-        if (decimal.TryParse(e.Value?.ToString(), out var iva))
+        if (decimal.TryParse(e.Value?.ToString(), System.Globalization.NumberStyles.AllowDecimalPoint, System.Globalization.CultureInfo.InvariantCulture, out var iva))
         {
             item.PorcentajeIva = iva;
             Recalcular();
@@ -603,7 +693,7 @@
 
     private void OnFormaPagoChange()
     {
-        MontoRecibido = Factura.Total;
+        MontoRecibido = FormaPagoSeleccionada == FormaPago.CuentaCorriente ? 0 : Factura.Total;
     }
 
     private async Task OnKeyUpBusqueda(KeyboardEventArgs e)
@@ -643,28 +733,10 @@
 
     private void Recalcular()
     {
-        decimal subtotalConIva = 0;
-        decimal iva21 = 0;
-        decimal iva105 = 0;
+        FacturaCalculos.Recalcular(Factura, validar: false);
+        if (!EsEfectivo) MontoRecibido = FormaPagoSeleccionada == FormaPago.CuentaCorriente ? 0 : Factura.Total;
 
-        foreach (var d in Factura.Detalles)
-        {
-            d.Subtotal = d.Cantidad * d.PrecioUnitario;
-
-            if (d.PorcentajeIva == 21)
-                iva21 += d.Subtotal - (d.Subtotal / 1.21m);
-            else if (d.PorcentajeIva == 10.5m)
-                iva105 += d.Subtotal - (d.Subtotal / 1.105m);
-
-            subtotalConIva += d.Subtotal;
-        }
-
-        Factura.Total = subtotalConIva;
-        Factura.TotalIva21 = iva21;
-        Factura.TotalIva105 = iva105;
-        Factura.Subtotal = subtotalConIva - iva21 - iva105;
-
-        if (MontoRecibido == 0 || MontoRecibido < Factura.Total)
+        if (EsEfectivo && (MontoRecibido == 0 || MontoRecibido < Factura.Total))
         {
             MontoRecibido = Factura.Total;
         }
@@ -688,7 +760,7 @@
                 Descripcion = p.Descripcion,
                 Cantidad = 1,
                 PrecioUnitario = p.PrecioVentaActual ?? 0,
-                PorcentajeIva = 21
+                PorcentajeIva = p.PorcentajeIvaActual
             });
         }
 
@@ -717,14 +789,14 @@
 
     private async Task Guardar()
     {
-        if (!Factura.Detalles.Any())
+        if (Guardando || EsModoLectura || !PuedeGuardar)
             return;
-
+        Guardando = true;
         try
         {
             var cajaAbierta = await CajaService.ObtenerCajaAbiertaAsync();
 
-            if (cajaAbierta == null)
+            if (!EsHomologacion && cajaAbierta == null)
             {
                 await JSRuntime.InvokeVoidAsync(
                     "alert",
@@ -747,15 +819,16 @@
                 Monto = Factura.Total
             });
 
+            Factura.IdCajaVenta = cajaAbierta?.IdCaja;
+            Factura.MontoRecibido = EsEfectivo ? MontoRecibido : FormaPagoSeleccionada == FormaPago.CuentaCorriente ? 0 : Factura.Total;
             var idFactura = await FacturaService.CrearAsync(Factura);
-
-            if (FormaPagoSeleccionada == FormaPago.Efectivo)
+            Factura.IdFactura = idFactura;
+            Factura = await FacturaService.ObtenerPorIdAsync(idFactura) ?? Factura;
+            RestaurarPago();
+            if (Factura.EnviarAfip && !Factura.EnviadaAfip)
             {
-                await CajaService.RegistrarVentaAsync(
-                    cajaAbierta.IdCaja,
-                    idFactura,
-                    Factura.Total
-                );
+                await JSRuntime.InvokeVoidAsync("alert", "El intento quedó guardado. " + (Factura.ErrorAfip ?? "Pendiente de confirmar en ARCA.") + " Recupérelo desde este detalle o desde el listado.");
+                return;
             }
 
             System.Diagnostics.Debug.WriteLine("Factura guardada correctamente");
@@ -774,9 +847,10 @@
 
             Factura = new FacturaViewModel
             {
-                IdCliente = 1,
-                Fecha = DateTime.Today,
+                IdCliente = IdClienteEventual,
+                Fecha = SistemaGestionFerreteria.Infrastructure.Services.FacturacionElectronica.AfipSolicitudFactory.FechaArgentina(),
                 TipoComprobante = TipoComprobante.FacturaB,
+                PuntoVenta = AfipConfiguration.Value.PuntoVenta,
                 Detalles = new List<FacturaDetalleViewModel>(),
                 Pagos = new List<FacturaPagoViewModel>()
             };
@@ -794,10 +868,30 @@
                 $"Error al guardar la factura: {ex.Message}"
             );
         }
+        finally { Guardando = false; }
+    }
+
+    private async Task Reintentar()
+    {
+        if (Guardando) return;
+        Guardando = true;
+        try
+        {
+            await FacturaService.ReintentarAfipAsync(Factura.IdFactura);
+            Factura = await FacturaService.ObtenerPorIdAsync(Factura.IdFactura) ?? Factura;
+            RestaurarPago();
+        }
+        catch (Exception ex) { await JSRuntime.InvokeVoidAsync("alert", ex.Message); }
+        finally { Guardando = false; }
     }
 
     private async Task ImprimirTicket()
     {
+        if (Factura.ResultadoAfip is "PENDIENTE" or "R")
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "El comprobante todavía no está autorizado. Consulte o reintente en ARCA.");
+            return;
+        }
         var cliente = Clientes
             .FirstOrDefault(x => x.IdCliente == Factura.IdCliente);
 

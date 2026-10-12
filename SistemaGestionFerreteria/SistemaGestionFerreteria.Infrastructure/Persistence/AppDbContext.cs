@@ -302,6 +302,7 @@ namespace SistemaGestionFerreteria.Infrastructure.Persistence
 
                 entity.Property(x => x.Total)
                     .HasColumnType("decimal(18,2)");
+                entity.Property(x => x.MontoRecibido).HasColumnType("decimal(18,2)");
 
                 entity.Property(x => x.EnviadaAfip)
                     .HasDefaultValue(false);
@@ -320,7 +321,15 @@ namespace SistemaGestionFerreteria.Infrastructure.Persistence
 
                 entity.HasIndex(x => new { x.TipoComprobante, x.PuntoVenta, x.NumeroComprobante })
                     .IsUnique()
+                    .HasFilter("[AmbienteAfip] IS NULL")
                     .HasDatabaseName("IX_Facturas_Numero");
+
+                entity.Property(x => x.AmbienteAfip).HasMaxLength(20);
+                entity.Property(x => x.CuitEmisorAfip).HasMaxLength(11);
+                entity.HasIndex(x => x.OperacionId).IsUnique().HasFilter("[OperacionId] IS NOT NULL");
+                entity.HasIndex(x => new { x.AmbienteAfip, x.CuitEmisorAfip, x.CodigoComprobanteAfip, x.PuntoVenta, x.NumeroComprobante })
+                    .IsUnique().HasFilter("[EnviadaAfip] = 1 AND [AmbienteAfip] IS NOT NULL")
+                    .HasDatabaseName("IX_Facturas_NumeroAfip");
 
                 entity.HasOne(x => x.Cliente)
                     .WithMany(x => x.Facturas)

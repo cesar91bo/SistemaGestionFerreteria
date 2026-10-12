@@ -30,8 +30,8 @@ builder.Services.AddScoped<ICajaService, CajaService>();
 builder.Services.Configure<AfipOptions>(builder.Configuration.GetSection("Afip"));
 
 builder.Services.AddScoped<IAfipConfiguracionService, AfipConfiguracionService>();
-builder.Services.AddScoped<IAfipWsaaService, AfipWsaaService>();
-builder.Services.AddScoped<IAfipWsfeService, AfipWsfeService>();
+builder.Services.AddHttpClient<IAfipWsaaService, AfipWsaaService>(client => client.Timeout = TimeSpan.FromSeconds(30));
+builder.Services.AddHttpClient<IAfipWsfeService, AfipWsfeService>(client => client.Timeout = TimeSpan.FromSeconds(45));
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();

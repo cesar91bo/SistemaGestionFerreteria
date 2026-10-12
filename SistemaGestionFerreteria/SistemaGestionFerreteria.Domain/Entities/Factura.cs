@@ -28,6 +28,7 @@ namespace SistemaGestionFerreteria.Domain.Entities
         public decimal TotalIva27 { get; set; }
         public decimal TotalExento { get; set; }
         public decimal Total { get; set; }
+        public decimal? MontoRecibido { get; set; }
 
         public bool EnviadaAfip { get; set; }
         public string? Cae { get; set; }
@@ -39,6 +40,14 @@ namespace SistemaGestionFerreteria.Domain.Entities
         public DateTime? FechaModificacion { get; set; }
         public string? ErrorAfip { get; set; }
         public DateTime? FechaEnvioAfip { get; set; }
+        public Guid? OperacionId { get; set; }
+        public string? AmbienteAfip { get; set; }
+        public string? CuitEmisorAfip { get; set; }
+        public int? CodigoComprobanteAfip { get; set; }
+        // Solicitud sin Token/Sign. Se conserva para recuperar un envío tras un corte.
+        public string? SolicitudAfip { get; set; }
+        public int? IdCajaVenta { get; set; }
+        public int? IdFacturaAsociada { get; set; }
 
         public ICollection<FacturaDetalle> Detalles { get; set; } = new List<FacturaDetalle>();
         public ICollection<FacturaPago> Pagos { get; set; } = new List<FacturaPago>();

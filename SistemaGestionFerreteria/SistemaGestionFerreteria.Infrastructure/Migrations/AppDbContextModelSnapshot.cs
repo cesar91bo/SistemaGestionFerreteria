@@ -226,12 +226,23 @@ namespace SistemaGestionFerreteria.Infrastructure.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
+                    b.Property<string>("AmbienteAfip")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("Cae")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<int?>("CodigoComprobanteAfip")
+                        .HasColumnType("int");
+
                     b.Property<int>("CondicionVenta")
                         .HasColumnType("int");
+
+                    b.Property<string>("CuitEmisorAfip")
+                        .HasMaxLength(11)
+                        .HasColumnType("nvarchar(11)");
 
                     b.Property<bool>("EnviadaAfip")
                         .ValueGeneratedOnAdd()
@@ -268,8 +279,17 @@ namespace SistemaGestionFerreteria.Infrastructure.Migrations
                     b.Property<DateTime?>("FechaVencimientoCae")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("IdCajaVenta")
+                        .HasColumnType("int");
+
                     b.Property<int>("IdCliente")
                         .HasColumnType("int");
+
+                    b.Property<int?>("IdFacturaAsociada")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("MontoRecibido")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("NumeroComprobante")
                         .HasColumnType("int");
@@ -278,12 +298,18 @@ namespace SistemaGestionFerreteria.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<Guid?>("OperacionId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<int>("PuntoVenta")
                         .HasColumnType("int");
 
                     b.Property<string>("ResultadoAfip")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("SolicitudAfip")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Subtotal")
                         .HasColumnType("decimal(18,2)");
@@ -310,9 +336,19 @@ namespace SistemaGestionFerreteria.Infrastructure.Migrations
 
                     b.HasIndex("IdCliente");
 
+                    b.HasIndex("OperacionId")
+                        .IsUnique()
+                        .HasFilter("[OperacionId] IS NOT NULL");
+
                     b.HasIndex("TipoComprobante", "PuntoVenta", "NumeroComprobante")
                         .IsUnique()
-                        .HasDatabaseName("IX_Facturas_Numero");
+                        .HasDatabaseName("IX_Facturas_Numero")
+                        .HasFilter("[AmbienteAfip] IS NULL");
+
+                    b.HasIndex("AmbienteAfip", "CuitEmisorAfip", "CodigoComprobanteAfip", "PuntoVenta", "NumeroComprobante")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Facturas_NumeroAfip")
+                        .HasFilter("[EnviadaAfip] = 1 AND [AmbienteAfip] IS NOT NULL");
 
                     b.ToTable("Facturas", (string)null);
                 });

@@ -44,6 +44,8 @@ namespace SistemaGestionFerreteria.Application.Features.Productos.Models
         public DateTime? FechaBaja { get; set; }
 
         public decimal? PrecioVentaActual { get; set; }
+        public SistemaGestionFerreteria.Domain.Enums.TipoIvaProducto TipoIvaActual { get; set; } = SistemaGestionFerreteria.Domain.Enums.TipoIvaProducto.Iva21;
+        public decimal PorcentajeIvaActual => (decimal)TipoIvaActual / 10m;
 
         public decimal? PrecioCostoActual { get; set; }
 

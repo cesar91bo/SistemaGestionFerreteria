@@ -76,10 +76,14 @@ else
         @if (LoginResultado is not null && LoginResultado.Exitoso)
         {
             <button class="btn btn-primary mt-3"
-                    @onclick="ConsultarUltimoFacturaB"
+                    @onclick="ConsultarUltimo"
                     disabled="@ConsultandoUltimoComprobante">
-                @(ConsultandoUltimoComprobante ? "Consultando último comprobante..." : "Consultar último Factura B")
+                @(ConsultandoUltimoComprobante ? "Consultando último comprobante..." : "Consultar último comprobante")
             </button>
+            <select class="form-select mt-2" style="max-width:240px" @bind="TipoConsulta" disabled="@ConsultandoUltimoComprobante">
+                <option value="6">Factura B</option>
+                <option value="1">Factura A</option>
+            </select>
         }
 
         @if (UltimoComprobanteResultado is not null)
@@ -117,6 +121,7 @@ else
 
     private AfipUltimoComprobanteResultado? UltimoComprobanteResultado;
     private bool ConsultandoUltimoComprobante = false;
+    private int TipoConsulta = 6;
 
     protected override void OnInitialized()
     {
@@ -138,16 +143,15 @@ else
         }
     }
 
-    private async Task ConsultarUltimoFacturaB()
+    private async Task ConsultarUltimo()
     {
         ConsultandoUltimoComprobante = true;
         UltimoComprobanteResultado = null;
 
         try
         {
-            // Factura B en AFIP = código 6
             UltimoComprobanteResultado =
-                await AfipWsfeService.ObtenerUltimoComprobanteAutorizadoAsync(Estado!.PuntoVenta, 6);
+                await AfipWsfeService.ObtenerUltimoComprobanteAutorizadoAsync(Estado!.PuntoVenta, TipoConsulta);
         }
         finally
         {

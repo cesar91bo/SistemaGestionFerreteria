@@ -77,6 +77,7 @@
                         <option value="FacturaB">FacturaB</option>
                         <option value="FacturaC">FacturaC</option>
                         <option value="Remito">Remito</option>
+                        <option value="FacturaX">Factura X (no fiscal)</option>
                         <option value="NotaCredito">NotaCredito</option>
                     </select>
                 </div>
@@ -176,9 +177,11 @@
                                         }
                                         else
                                         {
-                                            <span class="badge bg-success">
-                                                Emitida
+                                            <span class="badge @(f.EnviadaAfip ? "bg-success" : f.ResultadoAfip == "R" ? "bg-danger" : "bg-warning text-dark")">
+                                                @(f.EnviadaAfip ? "Autorizada" : f.ResultadoAfip == "R" ? "Rechazada" : f.ResultadoAfip == "PENDIENTE" ? "Pendiente ARCA" : "No fiscal")
                                             </span>
+                                            @if (f.AmbienteAfip is not null) { <div class="small">@f.AmbienteAfip</div> }
+                                            @if (f.ErrorAfip is not null) { <div class="small" style="max-width:300px">@f.ErrorAfip</div> }
                                         }
                                     </td>
 
@@ -191,15 +194,20 @@
                                             </a>
 
                                             <button class="btn btn-outline-info btn-sm"
+                                                    disabled="@(f.ResultadoAfip == "PENDIENTE" || f.ResultadoAfip == "R")"
                                                     @onclick="() => ImprimirComprobante(f)">
                                                 Imprimir
                                             </button>
 
                                             <button class="btn btn-outline-danger btn-sm"
-                                                    disabled="@(f.Estado == EstadoFactura.Anulada)"
+                                                    disabled="@(f.Estado == EstadoFactura.Anulada || f.EnviadaAfip || f.ResultadoAfip == "PENDIENTE")"
                                                     @onclick="() => AnularComprobante(f)">
                                                 Anular
                                             </button>
+                                            @if (f.AmbienteAfip is not null && !f.EnviadaAfip && f.Estado != EstadoFactura.Anulada)
+                                            {
+                                                <button class="btn btn-warning btn-sm" disabled="@(ReintentandoId.HasValue)" @onclick="() => Reintentar(f)">Consultar / reintentar ARCA</button>
+                                            }
                                         </div>
                                     </td>
                                 </tr>
@@ -224,6 +232,20 @@
     private string? FiltroCliente;
     private string? FiltroNumero;
     private string? FiltroTipo;
+    private int? ReintentandoId;
+    private async Task Reintentar(FacturaListadoViewModel item)
+    {
+        if (ReintentandoId.HasValue) return;
+        ReintentandoId = item.IdFactura;
+        try
+        {
+            await FacturaService.ReintentarAfipAsync(item.IdFactura);
+            Facturas = await FacturaService.ObtenerTodasAsync();
+            Buscar();
+        }
+        catch (Exception ex) { await JSRuntime.InvokeVoidAsync("alert", ex.Message); }
+        finally { ReintentandoId = null; }
+    }
 
 
     protected override async Task OnInitializedAsync()
@@ -628,36 +650,7 @@
             if (factura is null)
                 return;
 
-            var pago = factura.Pagos.FirstOrDefault();
-
-            var esEfectivo = pago != null && pago.FormaPago == FormaPago.Efectivo;
-
-            if (esEfectivo)
-            {
-                var cajaAbierta = await CajaService.ObtenerCajaAbiertaAsync();
-
-                if (cajaAbierta == null)
-                {
-                    await JSRuntime.InvokeVoidAsync(
-                        "alert",
-                        "No hay una caja abierta. Para anular un comprobante pagado en efectivo primero debe abrir caja."
-                    );
-
-                    return;
-                }
-
-                await FacturaService.AnularAsync(item.IdFactura);
-
-                await CajaService.RegistrarAnulacionVentaAsync(
-                    cajaAbierta.IdCaja,
-                    item.IdFactura,
-                    factura.Total
-                );
-            }
-            else
-            {
-                await FacturaService.AnularAsync(item.IdFactura);
-            }
+            await FacturaService.AnularAsync(item.IdFactura);
 
             Facturas = await FacturaService.ObtenerTodasAsync();
 

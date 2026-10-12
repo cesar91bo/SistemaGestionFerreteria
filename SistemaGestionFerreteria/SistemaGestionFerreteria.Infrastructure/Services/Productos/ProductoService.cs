@@ -55,6 +55,11 @@ namespace SistemaGestionFerreteria.Infrastructure.Services.Productos
                     FechaModificacion = x.FechaModificacion,
                     FechaBaja = x.FechaBaja,
 
+                    TipoIvaActual = x.Precios
+                        .Where(p => p.FechaHasta == null)
+                        .OrderByDescending(p => p.FechaDesde)
+                        .Select(p => (TipoIvaProducto?)p.TipoIva)
+                        .FirstOrDefault() ?? TipoIvaProducto.Iva21,
                     PrecioCostoActual = x.Precios
                         .Where(p => p.FechaHasta == null)
                         .OrderByDescending(p => p.FechaDesde)

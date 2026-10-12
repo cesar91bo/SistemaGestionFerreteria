@@ -7,6 +7,7 @@ namespace SistemaGestionFerreteria.Application.Interfaces
     public interface IFacturaService
     {
         Task<int> CrearAsync(FacturaViewModel model);
+        Task ReintentarAfipAsync(int idFactura);
 
         Task<List<FacturaListadoViewModel>> ObtenerTodasAsync();
 

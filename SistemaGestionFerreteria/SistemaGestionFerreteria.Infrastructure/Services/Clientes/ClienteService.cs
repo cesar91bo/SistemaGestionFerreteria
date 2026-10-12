@@ -129,6 +129,10 @@ namespace SistemaGestionFerreteria.Infrastructure.Services.Clientes
             var entidad = await _context.Clientes
                 .FirstAsync(x => x.IdCliente == idCliente);
 
+            if (string.Equals(entidad.Nombre.Trim(), "Cliente Eventual", StringComparison.OrdinalIgnoreCase) &&
+                entidad.RegimenImpositivo == SistemaGestionFerreteria.Domain.Enums.TipoRegimenImpositivo.ConsumidorFinal &&
+                string.IsNullOrWhiteSpace(entidad.Cuit) && string.IsNullOrWhiteSpace(entidad.Documento))
+                throw new InvalidOperationException("El Cliente Eventual se utiliza para ventas a consumidor final y debe permanecer activo.");
             entidad.Activo = false;
 
             await _context.SaveChangesAsync();

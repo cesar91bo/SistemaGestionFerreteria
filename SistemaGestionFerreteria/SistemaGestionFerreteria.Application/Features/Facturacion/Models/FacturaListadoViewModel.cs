@@ -20,5 +20,10 @@ namespace SistemaGestionFerreteria.Application.Features.Facturacion.Models
         public decimal Total { get; set; }
 
         public EstadoFactura Estado { get; set; }
+        public bool EnviadaAfip { get; set; }
+        public string? Cae { get; set; }
+        public string? ResultadoAfip { get; set; }
+        public string? ErrorAfip { get; set; }
+        public string? AmbienteAfip { get; set; }
     }
 }

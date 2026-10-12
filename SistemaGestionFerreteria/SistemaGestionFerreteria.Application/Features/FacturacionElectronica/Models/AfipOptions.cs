@@ -25,6 +25,8 @@
         public string WsaaUrl { get; set; } = string.Empty;
 
         public string WsfeUrl { get; set; } = string.Empty;
+        public string? RutaTicket { get; set; }
+        public decimal LimiteConsumidorFinalSinDocumento { get; set; } = 10000000m;
 
         public AfipCertificadoOptions Certificado { get; set; } = new();
     }
@@ -38,5 +40,6 @@
         public string? RutaPfx { get; set; }
 
         public string? PasswordPfx { get; set; }
+        public string? RutaPasswordProtegida { get; set; }
     }
 }

@@ -20,6 +20,9 @@ namespace SistemaGestionFerreteria.Domain.Enums
         Remito = 4,
 
         [Display(Name = "Nota de crédito")]
-        NotaCredito = 5
+        NotaCredito = 5,
+
+        [Display(Name = "Factura X (no fiscal)")]
+        FacturaX = 6
     }
 }
