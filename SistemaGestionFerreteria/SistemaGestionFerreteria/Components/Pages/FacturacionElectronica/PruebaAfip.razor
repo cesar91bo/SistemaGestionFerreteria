@@ -1,0 +1,214 @@
+﻿@page "/afip/prueba"
+@using SistemaGestionFerreteria.Application.Features.FacturacionElectronica.Models
+@using SistemaGestionFerreteria.Application.Interfaces
+@inject IAfipConfiguracionService AfipConfiguracionService
+@inject IAfipWsaaService AfipWsaaService
+@inject IAfipWsfeService AfipWsfeService
+
+<h3>Prueba de configuración AFIP</h3>
+
+@if (Estado is null)
+{
+    <p>Cargando configuración...</p>
+}
+else
+{
+    <div class="afip-card">
+        <p><strong>Ambiente:</strong> @Estado.Ambiente</p>
+        <p><strong>CUIT:</strong> @Estado.Cuit</p>
+        <p><strong>Punto de venta:</strong> @Estado.PuntoVenta</p>
+        <p><strong>Servicio:</strong> @Estado.Servicio</p>
+        <p><strong>WSAA:</strong> @Estado.WsaaUrl</p>
+        <p><strong>WSFE:</strong> @Estado.WsfeUrl</p>
+        <p><strong>Modo certificado:</strong> @Estado.ModoCertificado</p>
+        <p><strong>Ruta PFX:</strong> @Estado.RutaPfx</p>
+        <p><strong>Existe certificado:</strong> @(Estado.ExisteCertificado ? "Sí" : "No")</p>
+
+        @if (Estado.ConfiguracionValida)
+        {
+            <div class="alert alert-success">
+                La configuración básica de AFIP está completa.
+            </div>
+
+            <button class="btn btn-primary mt-3"
+                    @onclick="ProbarLoginWsaa"
+                    disabled="@ProbandoLogin">
+                @(ProbandoLogin ? "Probando login WSAA..." : "Probar login WSAA")
+            </button>
+        }
+        else
+        {
+            <div class="alert alert-danger">
+                Hay problemas en la configuración:
+                <ul>
+                    @foreach (var error in Estado.Errores)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            </div>
+        }
+
+        @if (LoginResultado is not null)
+        {
+            @if (LoginResultado.Exitoso)
+            {
+                <div class="alert alert-success mt-3">
+                    <strong>Login WSAA correcto.</strong>
+                    <br />
+                    Expira: @LoginResultado.ExpirationTime
+                    <br />
+                    Token recibido: @(string.IsNullOrWhiteSpace(LoginResultado.Token) ? "No" : "Sí")
+                    <br />
+                    Sign recibido: @(string.IsNullOrWhiteSpace(LoginResultado.Sign) ? "No" : "Sí")
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-danger mt-3">
+                    <strong>Error en login WSAA:</strong>
+                    <br />
+                    @LoginResultado.Error
+                </div>
+            }
+        }
+
+        @if (LoginResultado is not null && LoginResultado.Exitoso)
+        {
+            <button class="btn btn-primary mt-3"
+                    @onclick="ConsultarUltimoFacturaB"
+                    disabled="@ConsultandoUltimoComprobante">
+                @(ConsultandoUltimoComprobante ? "Consultando último comprobante..." : "Consultar último Factura B")
+            </button>
+        }
+
+        @if (UltimoComprobanteResultado is not null)
+        {
+            @if (UltimoComprobanteResultado.Exitoso)
+            {
+                <div class="alert alert-success mt-3">
+                    <strong>Consulta WSFE correcta.</strong>
+                    <br />
+                    Punto de venta: @UltimoComprobanteResultado.PuntoVenta
+                    <br />
+                    Tipo comprobante AFIP: @UltimoComprobanteResultado.CodigoTipoComprobanteAfip
+                    <br />
+                    Último número autorizado: @UltimoComprobanteResultado.UltimoNumero
+                    <br />
+                    Próximo número sugerido: @UltimoComprobanteResultado.ProximoNumero
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-danger mt-3">
+                    <strong>Error consultando último comprobante:</strong>
+                    <br />
+                    @UltimoComprobanteResultado.Error
+                </div>
+            }
+        }
+    </div>
+}
+
+@code {
+    private AfipEstadoConfiguracionViewModel? Estado;
+    private AfipLoginResultado? LoginResultado;
+    private bool ProbandoLogin = false;
+
+    private AfipUltimoComprobanteResultado? UltimoComprobanteResultado;
+    private bool ConsultandoUltimoComprobante = false;
+
+    protected override void OnInitialized()
+    {
+        Estado = AfipConfiguracionService.ValidarConfiguracion();
+    }
+
+    private async Task ProbarLoginWsaa()
+    {
+        ProbandoLogin = true;
+        LoginResultado = null;
+
+        try
+        {
+            LoginResultado = await AfipWsaaService.ObtenerLoginTicketAsync();
+        }
+        finally
+        {
+            ProbandoLogin = false;
+        }
+    }
+
+    private async Task ConsultarUltimoFacturaB()
+    {
+        ConsultandoUltimoComprobante = true;
+        UltimoComprobanteResultado = null;
+
+        try
+        {
+            // Factura B en AFIP = código 6
+            UltimoComprobanteResultado =
+                await AfipWsfeService.ObtenerUltimoComprobanteAutorizadoAsync(Estado!.PuntoVenta, 6);
+        }
+        finally
+        {
+            ConsultandoUltimoComprobante = false;
+        }
+    }
+}
+
+<style>
+    .afip-card {
+        background: #111827;
+        color: #e5e7eb;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 14px;
+        padding: 1rem;
+        max-width: 900px;
+    }
+
+        .afip-card p {
+            margin-bottom: 0.45rem;
+        }
+
+    .btn {
+        border: none;
+        border-radius: 10px;
+        padding: 0.65rem 1rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .btn-primary {
+        background: #2563eb;
+        color: white;
+    }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+    .mt-3 {
+        margin-top: 1rem;
+    }
+
+    .alert {
+        border-radius: 10px;
+        padding: 0.85rem 1rem;
+        margin-top: 1rem;
+    }
+
+    .alert-success {
+        background: #d1fae5;
+        color: #064e3b;
+    }
+
+    .alert-danger {
+        background: #fee2e2;
+        color: #7f1d1d;
+    }
+</style>

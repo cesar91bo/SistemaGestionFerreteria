@@ -238,6 +238,9 @@ namespace SistemaGestionFerreteria.Infrastructure.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<string>("ErrorAfip")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("Estado")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -252,6 +255,9 @@ namespace SistemaGestionFerreteria.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETDATE()");
+
+                    b.Property<DateTime?>("FechaEnvioAfip")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("FechaModificacion")
                         .HasColumnType("datetime2");

@@ -37,6 +37,8 @@ namespace SistemaGestionFerreteria.Domain.Entities
         public bool Activo { get; set; } = true;
         public DateTime FechaAlta { get; set; } = DateTime.Now;
         public DateTime? FechaModificacion { get; set; }
+        public string? ErrorAfip { get; set; }
+        public DateTime? FechaEnvioAfip { get; set; }
 
         public ICollection<FacturaDetalle> Detalles { get; set; } = new List<FacturaDetalle>();
         public ICollection<FacturaPago> Pagos { get; set; } = new List<FacturaPago>();

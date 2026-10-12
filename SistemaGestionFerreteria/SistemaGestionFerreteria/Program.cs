@@ -11,6 +11,7 @@ using SistemaGestionFerreteria.Infrastructure.Services.Facturacion;
 using SistemaGestionFerreteria.Infrastructure.Services.Parametros;
 using SistemaGestionFerreteria.Infrastructure.Services.Productos;
 using SistemaGestionFerreteria.Infrastructure.Services.Unidades;
+using SistemaGestionFerreteria.Infrastructure.Services.FacturacionElectronica;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +28,10 @@ builder.Services.AddScoped<IClienteService, ClienteService>();
 builder.Services.AddScoped<IFacturaService, FacturaService>();
 builder.Services.AddScoped<ICajaService, CajaService>();
 builder.Services.Configure<AfipOptions>(builder.Configuration.GetSection("Afip"));
+
+builder.Services.AddScoped<IAfipConfiguracionService, AfipConfiguracionService>();
+builder.Services.AddScoped<IAfipWsaaService, AfipWsaaService>();
+builder.Services.AddScoped<IAfipWsfeService, AfipWsfeService>();
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
